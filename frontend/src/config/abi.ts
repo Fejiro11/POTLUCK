@@ -72,6 +72,41 @@ export const FHE_LOTTERY_ABI = [
     stateMutability: "view",
     type: "function"
   },
+  {
+    inputs: [],
+    name: "ROUND_DURATION",
+    outputs: [{ name: "", type: "uint256" }],
+    stateMutability: "view",
+    type: "function"
+  },
+  {
+    inputs: [],
+    name: "FINALITY_DELAY",
+    outputs: [{ name: "", type: "uint256" }],
+    stateMutability: "view",
+    type: "function"
+  },
+  {
+    inputs: [],
+    name: "owner",
+    outputs: [{ name: "", type: "address" }],
+    stateMutability: "view",
+    type: "function"
+  },
+  {
+    inputs: [],
+    name: "pendingOwner",
+    outputs: [{ name: "", type: "address" }],
+    stateMutability: "view",
+    type: "function"
+  },
+  {
+    inputs: [],
+    name: "platformWallet",
+    outputs: [{ name: "", type: "address" }],
+    stateMutability: "view",
+    type: "function"
+  },
   // State-changing functions
   {
     inputs: [
@@ -115,6 +150,48 @@ export const FHE_LOTTERY_ABI = [
   {
     inputs: [{ name: "_roundId", type: "uint256" }],
     name: "claimRefund",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function"
+  },
+  {
+    inputs: [],
+    name: "skipStuckRound",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function"
+  },
+  {
+    inputs: [],
+    name: "forceNewRound",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function"
+  },
+  {
+    inputs: [{ name: "_newOwner", type: "address" }],
+    name: "transferOwnership",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function"
+  },
+  {
+    inputs: [],
+    name: "acceptOwnership",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function"
+  },
+  {
+    inputs: [{ name: "_newWallet", type: "address" }],
+    name: "setPlatformWallet",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function"
+  },
+  {
+    inputs: [],
+    name: "emergencyWithdraw",
     outputs: [],
     stateMutability: "nonpayable",
     type: "function"
@@ -187,6 +264,15 @@ export const FHE_LOTTERY_ABI = [
       { indexed: true, name: "roundId", type: "uint256" }
     ],
     name: "DecryptionRequested",
+    type: "event"
+  },
+  {
+    anonymous: false,
+    inputs: [
+      { indexed: true, name: "previousOwner", type: "address" },
+      { indexed: true, name: "newOwner", type: "address" }
+    ],
+    name: "OwnershipTransferStarted",
     type: "event"
   }
 ] as const;

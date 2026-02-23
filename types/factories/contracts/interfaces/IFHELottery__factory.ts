@@ -18,6 +18,19 @@ const _abi = [
         name: "roundId",
         type: "uint256",
       },
+    ],
+    name: "DecryptionRequested",
+    type: "event",
+  },
+  {
+    anonymous: false,
+    inputs: [
+      {
+        indexed: true,
+        internalType: "uint256",
+        name: "roundId",
+        type: "uint256",
+      },
       {
         indexed: true,
         internalType: "address",
@@ -51,6 +64,25 @@ const _abi = [
       },
     ],
     name: "NoWinnerRound",
+    type: "event",
+  },
+  {
+    anonymous: false,
+    inputs: [
+      {
+        indexed: true,
+        internalType: "address",
+        name: "previousOwner",
+        type: "address",
+      },
+      {
+        indexed: true,
+        internalType: "address",
+        name: "newOwner",
+        type: "address",
+      },
+    ],
+    name: "OwnershipTransferStarted",
     type: "event",
   },
   {
@@ -212,6 +244,19 @@ const _abi = [
   },
   {
     inputs: [],
+    name: "FINALITY_DELAY",
+    outputs: [
+      {
+        internalType: "uint256",
+        name: "",
+        type: "uint256",
+      },
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [],
     name: "MAX_NUMBER",
     outputs: [
       {
@@ -263,6 +308,13 @@ const _abi = [
     type: "function",
   },
   {
+    inputs: [],
+    name: "acceptOwnership",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
     inputs: [
       {
         internalType: "uint256",
@@ -308,6 +360,48 @@ const _abi = [
       },
     ],
     name: "claimRefund",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [],
+    name: "emergencyWithdraw",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [
+      {
+        internalType: "uint256",
+        name: "_roundId",
+        type: "uint256",
+      },
+      {
+        internalType: "uint8",
+        name: "_luckyNumber",
+        type: "uint8",
+      },
+      {
+        internalType: "uint8[]",
+        name: "_distances",
+        type: "uint8[]",
+      },
+      {
+        internalType: "bytes",
+        name: "_decryptionProof",
+        type: "bytes",
+      },
+    ],
+    name: "finalizeSettlement",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [],
+    name: "forceNewRound",
     outputs: [],
     stateMutability: "nonpayable",
     type: "function",
@@ -444,7 +538,7 @@ const _abi = [
         type: "uint256",
       },
     ],
-    name: "initiateSettlement",
+    name: "requestSettlement",
     outputs: [],
     stateMutability: "nonpayable",
     type: "function",
@@ -452,9 +546,29 @@ const _abi = [
   {
     inputs: [
       {
-        internalType: "bytes",
+        internalType: "address",
+        name: "_newWallet",
+        type: "address",
+      },
+    ],
+    name: "setPlatformWallet",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [],
+    name: "skipStuckRound",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [
+      {
+        internalType: "externalEuint8",
         name: "_encryptedGuess",
-        type: "bytes",
+        type: "bytes32",
       },
       {
         internalType: "bytes",
@@ -470,9 +584,9 @@ const _abi = [
   {
     inputs: [
       {
-        internalType: "bytes[]",
+        internalType: "externalEuint8[]",
         name: "_encryptedGuesses",
-        type: "bytes[]",
+        type: "bytes32[]",
       },
       {
         internalType: "bytes[]",
@@ -483,6 +597,19 @@ const _abi = [
     name: "submitMultipleGuesses",
     outputs: [],
     stateMutability: "payable",
+    type: "function",
+  },
+  {
+    inputs: [
+      {
+        internalType: "address",
+        name: "_newOwner",
+        type: "address",
+      },
+    ],
+    name: "transferOwnership",
+    outputs: [],
+    stateMutability: "nonpayable",
     type: "function",
   },
 ] as const;

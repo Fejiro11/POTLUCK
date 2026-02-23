@@ -1,8 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Gift, Loader2, AlertCircle } from 'lucide-react';
+import { ethers } from 'ethers';
 import { useLottery } from '@/hooks/useLottery';
+import { useWallet } from '@/hooks/useWallet';
+import { CONTRACTS, ENTRY_FEE } from '@/config/contracts';
+import { FHE_LOTTERY_ABI } from '@/config/abi';
 
 interface ClaimSectionProps {
   address: string | null;
@@ -19,30 +23,53 @@ export function ClaimSection({ address }: ClaimSectionProps) {
   const [isClaiming, setIsClaiming] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const { claimRefund, claimWinnings } = useLottery();
+  const { provider } = useWallet();
 
-  useEffect(() => {
-    if (!address) {
+  const checkClaimable = useCallback(async () => {
+    if (!address || !provider) {
       setClaimableRounds([]);
       setIsLoading(false);
       return;
     }
 
-    // Check for claimable rounds - in production, fetch from contract
-    const checkClaimable = async () => {
-      setIsLoading(true);
-      try {
-        // Simulated check - replace with actual contract calls
-        await new Promise(resolve => setTimeout(resolve, 500));
-        setClaimableRounds([]);
-      } catch (error) {
-        console.error('Error checking claimable rounds:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
+    setIsLoading(true);
+    try {
+      const contract = new ethers.Contract(CONTRACTS.FHE_LOTTERY, FHE_LOTTERY_ABI, provider);
+      const currentRoundId = Number(await contract.currentRoundId());
+      const claimable: ClaimableRound[] = [];
 
+      // Check recent rounds (up to 10 past rounds) for claimable refunds
+      const startRound = Math.max(1, currentRoundId - 10);
+      for (let roundId = startRound; roundId <= currentRoundId; roundId++) {
+        try {
+          const canClaim = await contract.canClaimRefund(roundId, address);
+          if (canClaim) {
+            // Estimate refund amount: contribution minus platform fee share
+            const [, contribution] = await contract.getPlayerGuesses(roundId, address);
+            const feeShare = (contribution * BigInt(30)) / BigInt(10000); // PLATFORM_FEE_BPS = 30
+            const refundAmount = contribution - feeShare;
+            claimable.push({
+              roundId,
+              type: 'refund',
+              amount: ethers.formatEther(refundAmount),
+            });
+          }
+        } catch {
+          // Round may not exist or not settled yet — skip
+        }
+      }
+
+      setClaimableRounds(claimable);
+    } catch (error) {
+      console.error('Error checking claimable rounds:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [address, provider]);
+
+  useEffect(() => {
     checkClaimable();
-  }, [address]);
+  }, [checkClaimable]);
 
   const handleClaim = async (round: ClaimableRound) => {
     setIsClaiming(true);

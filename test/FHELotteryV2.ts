@@ -267,9 +267,25 @@ describe("FHELotteryV2", function () {
       ).to.be.revertedWith("Only owner");
     });
 
-    it("should allow owner to transfer ownership", async function () {
+    it("should allow owner to initiate ownership transfer (2-step)", async function () {
       await lottery.transferOwnership(signers.alice.address);
+      // Owner should NOT change yet
+      expect(await lottery.owner()).to.equal(signers.deployer.address);
+      expect(await lottery.pendingOwner()).to.equal(signers.alice.address);
+    });
+
+    it("should allow pending owner to accept ownership", async function () {
+      await lottery.transferOwnership(signers.alice.address);
+      await lottery.connect(signers.alice).acceptOwnership();
       expect(await lottery.owner()).to.equal(signers.alice.address);
+      expect(await lottery.pendingOwner()).to.equal(ethers.ZeroAddress);
+    });
+
+    it("should not allow non-pending owner to accept ownership", async function () {
+      await lottery.transferOwnership(signers.alice.address);
+      await expect(
+        lottery.connect(signers.bob).acceptOwnership()
+      ).to.be.revertedWith("Not pending owner");
     });
 
     it("should not allow transferring ownership to zero address", async function () {

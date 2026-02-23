@@ -51,6 +51,7 @@ contract FHELotteryV2 is ZamaEthereumConfig {
 
     // ============ State Variables ============
     address public owner;
+    address public pendingOwner;
     address public platformWallet;
     uint256 public currentRoundId;
     
@@ -69,6 +70,7 @@ contract FHELotteryV2 is ZamaEthereumConfig {
     event PlatformFeeCollected(uint256 indexed roundId, uint256 amount);
     event WinnerRevealed(uint256 indexed roundId, address indexed winner, uint8 guess, uint256 payout);
     event DecryptionRequested(uint256 indexed roundId);
+    event OwnershipTransferStarted(address indexed previousOwner, address indexed newOwner);
 
     // ============ Modifiers ============
     modifier onlyOwner() {
@@ -293,9 +295,12 @@ contract FHELotteryV2 is ZamaEthereumConfig {
         }
         
         // Build cleartext bytes for verification per Zama docs
+        // Each cleartext must be individually abi.encode'd and concatenated
         // Order must match ciphertexts array: [luckyNumber, distances[0], distances[1], ...]
-        // Use abi.encode (not abi.encodePacked) per Zama documentation
-        bytes memory cleartexts = abi.encode(_luckyNumber, _distances);
+        bytes memory cleartexts = abi.encode(_luckyNumber);
+        for (uint256 i = 0; i < _distances.length; i++) {
+            cleartexts = bytes.concat(cleartexts, abi.encode(_distances[i]));
+        }
         
         // Verify decryption proof per Zama docs
         FHE.checkSignatures(ciphertexts, cleartexts, _decryptionProof);
@@ -677,6 +682,16 @@ contract FHELotteryV2 is ZamaEthereumConfig {
         round.isSettled = true;
         round.hasExactMatch = false;
         
+        // Calculate and transfer platform fee so claimRefund math is consistent
+        if (round.totalPool > 0) {
+            round.platformFee = (round.totalPool * PLATFORM_FEE_BPS) / 10000;
+            if (round.platformFee > 0) {
+                (bool success, ) = platformWallet.call{value: round.platformFee}("");
+                require(success, "Platform fee transfer failed");
+                emit PlatformFeeCollected(currentRoundId, round.platformFee);
+            }
+        }
+        
         // Start new round immediately
         _startNewRound();
     }
@@ -693,7 +708,14 @@ contract FHELotteryV2 is ZamaEthereumConfig {
 
     function transferOwnership(address _newOwner) external onlyOwner {
         require(_newOwner != address(0), "Invalid address");
-        owner = _newOwner;
+        pendingOwner = _newOwner;
+        emit OwnershipTransferStarted(owner, _newOwner);
+    }
+
+    function acceptOwnership() external {
+        require(msg.sender == pendingOwner, "Not pending owner");
+        owner = pendingOwner;
+        pendingOwner = address(0);
     }
 
     receive() external payable {}

@@ -28,26 +28,36 @@ export interface IFHELotteryInterface extends Interface {
     nameOrSignature:
       | "COOLING_PERIOD"
       | "ENTRY_FEE"
+      | "FINALITY_DELAY"
       | "MAX_NUMBER"
       | "MAX_PLAYERS"
       | "PLATFORM_FEE_BPS"
       | "ROUND_DURATION"
+      | "acceptOwnership"
       | "canClaimRefund"
       | "canStartNewRound"
       | "claimRefund"
+      | "emergencyWithdraw"
+      | "finalizeSettlement"
+      | "forceNewRound"
       | "getCurrentRound"
       | "getPlayerGuesses"
       | "getRoundResults"
       | "getTimeRemaining"
-      | "initiateSettlement"
+      | "requestSettlement"
+      | "setPlatformWallet"
+      | "skipStuckRound"
       | "submitGuess"
       | "submitMultipleGuesses"
+      | "transferOwnership"
   ): FunctionFragment;
 
   getEvent(
     nameOrSignatureOrTopic:
+      | "DecryptionRequested"
       | "GuessSubmitted"
       | "NoWinnerRound"
+      | "OwnershipTransferStarted"
       | "PlatformFeeCollected"
       | "RefundClaimed"
       | "RoundSettled"
@@ -60,6 +70,10 @@ export interface IFHELotteryInterface extends Interface {
     values?: undefined
   ): string;
   encodeFunctionData(functionFragment: "ENTRY_FEE", values?: undefined): string;
+  encodeFunctionData(
+    functionFragment: "FINALITY_DELAY",
+    values?: undefined
+  ): string;
   encodeFunctionData(
     functionFragment: "MAX_NUMBER",
     values?: undefined
@@ -77,6 +91,10 @@ export interface IFHELotteryInterface extends Interface {
     values?: undefined
   ): string;
   encodeFunctionData(
+    functionFragment: "acceptOwnership",
+    values?: undefined
+  ): string;
+  encodeFunctionData(
     functionFragment: "canClaimRefund",
     values: [BigNumberish, AddressLike]
   ): string;
@@ -87,6 +105,18 @@ export interface IFHELotteryInterface extends Interface {
   encodeFunctionData(
     functionFragment: "claimRefund",
     values: [BigNumberish]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "emergencyWithdraw",
+    values?: undefined
+  ): string;
+  encodeFunctionData(
+    functionFragment: "finalizeSettlement",
+    values: [BigNumberish, BigNumberish, BigNumberish[], BytesLike]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "forceNewRound",
+    values?: undefined
   ): string;
   encodeFunctionData(
     functionFragment: "getCurrentRound",
@@ -105,8 +135,16 @@ export interface IFHELotteryInterface extends Interface {
     values?: undefined
   ): string;
   encodeFunctionData(
-    functionFragment: "initiateSettlement",
+    functionFragment: "requestSettlement",
     values: [BigNumberish]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "setPlatformWallet",
+    values: [AddressLike]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "skipStuckRound",
+    values?: undefined
   ): string;
   encodeFunctionData(
     functionFragment: "submitGuess",
@@ -116,12 +154,20 @@ export interface IFHELotteryInterface extends Interface {
     functionFragment: "submitMultipleGuesses",
     values: [BytesLike[], BytesLike[]]
   ): string;
+  encodeFunctionData(
+    functionFragment: "transferOwnership",
+    values: [AddressLike]
+  ): string;
 
   decodeFunctionResult(
     functionFragment: "COOLING_PERIOD",
     data: BytesLike
   ): Result;
   decodeFunctionResult(functionFragment: "ENTRY_FEE", data: BytesLike): Result;
+  decodeFunctionResult(
+    functionFragment: "FINALITY_DELAY",
+    data: BytesLike
+  ): Result;
   decodeFunctionResult(functionFragment: "MAX_NUMBER", data: BytesLike): Result;
   decodeFunctionResult(
     functionFragment: "MAX_PLAYERS",
@@ -136,6 +182,10 @@ export interface IFHELotteryInterface extends Interface {
     data: BytesLike
   ): Result;
   decodeFunctionResult(
+    functionFragment: "acceptOwnership",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
     functionFragment: "canClaimRefund",
     data: BytesLike
   ): Result;
@@ -145,6 +195,18 @@ export interface IFHELotteryInterface extends Interface {
   ): Result;
   decodeFunctionResult(
     functionFragment: "claimRefund",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "emergencyWithdraw",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "finalizeSettlement",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "forceNewRound",
     data: BytesLike
   ): Result;
   decodeFunctionResult(
@@ -164,7 +226,15 @@ export interface IFHELotteryInterface extends Interface {
     data: BytesLike
   ): Result;
   decodeFunctionResult(
-    functionFragment: "initiateSettlement",
+    functionFragment: "requestSettlement",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "setPlatformWallet",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "skipStuckRound",
     data: BytesLike
   ): Result;
   decodeFunctionResult(
@@ -175,6 +245,22 @@ export interface IFHELotteryInterface extends Interface {
     functionFragment: "submitMultipleGuesses",
     data: BytesLike
   ): Result;
+  decodeFunctionResult(
+    functionFragment: "transferOwnership",
+    data: BytesLike
+  ): Result;
+}
+
+export namespace DecryptionRequestedEvent {
+  export type InputTuple = [roundId: BigNumberish];
+  export type OutputTuple = [roundId: bigint];
+  export interface OutputObject {
+    roundId: bigint;
+  }
+  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
+  export type Filter = TypedDeferredTopicFilter<Event>;
+  export type Log = TypedEventLog<Event>;
+  export type LogDescription = TypedLogDescription<Event>;
 }
 
 export namespace GuessSubmittedEvent {
@@ -205,6 +291,19 @@ export namespace NoWinnerRoundEvent {
   export interface OutputObject {
     roundId: bigint;
     luckyNumber: bigint;
+  }
+  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
+  export type Filter = TypedDeferredTopicFilter<Event>;
+  export type Log = TypedEventLog<Event>;
+  export type LogDescription = TypedLogDescription<Event>;
+}
+
+export namespace OwnershipTransferStartedEvent {
+  export type InputTuple = [previousOwner: AddressLike, newOwner: AddressLike];
+  export type OutputTuple = [previousOwner: string, newOwner: string];
+  export interface OutputObject {
+    previousOwner: string;
+    newOwner: string;
   }
   export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
   export type Filter = TypedDeferredTopicFilter<Event>;
@@ -362,6 +461,8 @@ export interface IFHELottery extends BaseContract {
 
   ENTRY_FEE: TypedContractMethod<[], [bigint], "view">;
 
+  FINALITY_DELAY: TypedContractMethod<[], [bigint], "view">;
+
   MAX_NUMBER: TypedContractMethod<[], [bigint], "view">;
 
   MAX_PLAYERS: TypedContractMethod<[], [bigint], "view">;
@@ -369,6 +470,8 @@ export interface IFHELottery extends BaseContract {
   PLATFORM_FEE_BPS: TypedContractMethod<[], [bigint], "view">;
 
   ROUND_DURATION: TypedContractMethod<[], [bigint], "view">;
+
+  acceptOwnership: TypedContractMethod<[], [void], "nonpayable">;
 
   canClaimRefund: TypedContractMethod<
     [_roundId: BigNumberish, _player: AddressLike],
@@ -383,6 +486,21 @@ export interface IFHELottery extends BaseContract {
     [void],
     "nonpayable"
   >;
+
+  emergencyWithdraw: TypedContractMethod<[], [void], "nonpayable">;
+
+  finalizeSettlement: TypedContractMethod<
+    [
+      _roundId: BigNumberish,
+      _luckyNumber: BigNumberish,
+      _distances: BigNumberish[],
+      _decryptionProof: BytesLike
+    ],
+    [void],
+    "nonpayable"
+  >;
+
+  forceNewRound: TypedContractMethod<[], [void], "nonpayable">;
 
   getCurrentRound: TypedContractMethod<
     [],
@@ -422,11 +540,19 @@ export interface IFHELottery extends BaseContract {
 
   getTimeRemaining: TypedContractMethod<[], [bigint], "view">;
 
-  initiateSettlement: TypedContractMethod<
+  requestSettlement: TypedContractMethod<
     [_roundId: BigNumberish],
     [void],
     "nonpayable"
   >;
+
+  setPlatformWallet: TypedContractMethod<
+    [_newWallet: AddressLike],
+    [void],
+    "nonpayable"
+  >;
+
+  skipStuckRound: TypedContractMethod<[], [void], "nonpayable">;
 
   submitGuess: TypedContractMethod<
     [_encryptedGuess: BytesLike, _inputProof: BytesLike],
@@ -440,6 +566,12 @@ export interface IFHELottery extends BaseContract {
     "payable"
   >;
 
+  transferOwnership: TypedContractMethod<
+    [_newOwner: AddressLike],
+    [void],
+    "nonpayable"
+  >;
+
   getFunction<T extends ContractMethod = ContractMethod>(
     key: string | FunctionFragment
   ): T;
@@ -449,6 +581,9 @@ export interface IFHELottery extends BaseContract {
   ): TypedContractMethod<[], [bigint], "view">;
   getFunction(
     nameOrSignature: "ENTRY_FEE"
+  ): TypedContractMethod<[], [bigint], "view">;
+  getFunction(
+    nameOrSignature: "FINALITY_DELAY"
   ): TypedContractMethod<[], [bigint], "view">;
   getFunction(
     nameOrSignature: "MAX_NUMBER"
@@ -463,6 +598,9 @@ export interface IFHELottery extends BaseContract {
     nameOrSignature: "ROUND_DURATION"
   ): TypedContractMethod<[], [bigint], "view">;
   getFunction(
+    nameOrSignature: "acceptOwnership"
+  ): TypedContractMethod<[], [void], "nonpayable">;
+  getFunction(
     nameOrSignature: "canClaimRefund"
   ): TypedContractMethod<
     [_roundId: BigNumberish, _player: AddressLike],
@@ -475,6 +613,24 @@ export interface IFHELottery extends BaseContract {
   getFunction(
     nameOrSignature: "claimRefund"
   ): TypedContractMethod<[_roundId: BigNumberish], [void], "nonpayable">;
+  getFunction(
+    nameOrSignature: "emergencyWithdraw"
+  ): TypedContractMethod<[], [void], "nonpayable">;
+  getFunction(
+    nameOrSignature: "finalizeSettlement"
+  ): TypedContractMethod<
+    [
+      _roundId: BigNumberish,
+      _luckyNumber: BigNumberish,
+      _distances: BigNumberish[],
+      _decryptionProof: BytesLike
+    ],
+    [void],
+    "nonpayable"
+  >;
+  getFunction(
+    nameOrSignature: "forceNewRound"
+  ): TypedContractMethod<[], [void], "nonpayable">;
   getFunction(
     nameOrSignature: "getCurrentRound"
   ): TypedContractMethod<
@@ -518,8 +674,14 @@ export interface IFHELottery extends BaseContract {
     nameOrSignature: "getTimeRemaining"
   ): TypedContractMethod<[], [bigint], "view">;
   getFunction(
-    nameOrSignature: "initiateSettlement"
+    nameOrSignature: "requestSettlement"
   ): TypedContractMethod<[_roundId: BigNumberish], [void], "nonpayable">;
+  getFunction(
+    nameOrSignature: "setPlatformWallet"
+  ): TypedContractMethod<[_newWallet: AddressLike], [void], "nonpayable">;
+  getFunction(
+    nameOrSignature: "skipStuckRound"
+  ): TypedContractMethod<[], [void], "nonpayable">;
   getFunction(
     nameOrSignature: "submitGuess"
   ): TypedContractMethod<
@@ -534,7 +696,17 @@ export interface IFHELottery extends BaseContract {
     [void],
     "payable"
   >;
+  getFunction(
+    nameOrSignature: "transferOwnership"
+  ): TypedContractMethod<[_newOwner: AddressLike], [void], "nonpayable">;
 
+  getEvent(
+    key: "DecryptionRequested"
+  ): TypedContractEvent<
+    DecryptionRequestedEvent.InputTuple,
+    DecryptionRequestedEvent.OutputTuple,
+    DecryptionRequestedEvent.OutputObject
+  >;
   getEvent(
     key: "GuessSubmitted"
   ): TypedContractEvent<
@@ -548,6 +720,13 @@ export interface IFHELottery extends BaseContract {
     NoWinnerRoundEvent.InputTuple,
     NoWinnerRoundEvent.OutputTuple,
     NoWinnerRoundEvent.OutputObject
+  >;
+  getEvent(
+    key: "OwnershipTransferStarted"
+  ): TypedContractEvent<
+    OwnershipTransferStartedEvent.InputTuple,
+    OwnershipTransferStartedEvent.OutputTuple,
+    OwnershipTransferStartedEvent.OutputObject
   >;
   getEvent(
     key: "PlatformFeeCollected"
@@ -586,6 +765,17 @@ export interface IFHELottery extends BaseContract {
   >;
 
   filters: {
+    "DecryptionRequested(uint256)": TypedContractEvent<
+      DecryptionRequestedEvent.InputTuple,
+      DecryptionRequestedEvent.OutputTuple,
+      DecryptionRequestedEvent.OutputObject
+    >;
+    DecryptionRequested: TypedContractEvent<
+      DecryptionRequestedEvent.InputTuple,
+      DecryptionRequestedEvent.OutputTuple,
+      DecryptionRequestedEvent.OutputObject
+    >;
+
     "GuessSubmitted(uint256,address,uint256)": TypedContractEvent<
       GuessSubmittedEvent.InputTuple,
       GuessSubmittedEvent.OutputTuple,
@@ -606,6 +796,17 @@ export interface IFHELottery extends BaseContract {
       NoWinnerRoundEvent.InputTuple,
       NoWinnerRoundEvent.OutputTuple,
       NoWinnerRoundEvent.OutputObject
+    >;
+
+    "OwnershipTransferStarted(address,address)": TypedContractEvent<
+      OwnershipTransferStartedEvent.InputTuple,
+      OwnershipTransferStartedEvent.OutputTuple,
+      OwnershipTransferStartedEvent.OutputObject
+    >;
+    OwnershipTransferStarted: TypedContractEvent<
+      OwnershipTransferStartedEvent.InputTuple,
+      OwnershipTransferStartedEvent.OutputTuple,
+      OwnershipTransferStartedEvent.OutputObject
     >;
 
     "PlatformFeeCollected(uint256,uint256)": TypedContractEvent<

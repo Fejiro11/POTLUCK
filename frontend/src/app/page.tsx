@@ -120,7 +120,7 @@ export default function Home() {
               {
                 step: '03',
                 title: 'Wait for Settlement',
-                description: 'Round ends after 1 hour, followed by encrypted computation',
+                description: 'Round ends after 10 minutes, followed by encrypted computation',
               },
               {
                 step: '04',

@@ -1,7 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { ethers } from 'ethers';
 import { Trophy, Users, Hash, ExternalLink } from 'lucide-react';
+import { useWallet } from '@/hooks/useWallet';
+import { CONTRACTS } from '@/config/contracts';
+import { FHE_LOTTERY_ABI } from '@/config/abi';
 
 interface RoundResult {
   roundId: number;
@@ -15,25 +19,51 @@ interface RoundResult {
 export function PastRounds() {
   const [rounds, setRounds] = useState<RoundResult[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const { provider } = useWallet();
+
+  const fetchPastRounds = useCallback(async () => {
+    if (!provider) {
+      setIsLoading(false);
+      return;
+    }
+
+    try {
+      const contract = new ethers.Contract(CONTRACTS.FHE_LOTTERY, FHE_LOTTERY_ABI, provider);
+      const currentRoundId = Number(await contract.currentRoundId());
+      const pastRounds: RoundResult[] = [];
+
+      // Fetch up to 10 most recent settled rounds
+      const startRound = Math.max(1, currentRoundId - 10);
+      for (let roundId = currentRoundId; roundId >= startRound; roundId--) {
+        try {
+          const result = await contract.getRoundResults(roundId);
+          if (result.isSettled) {
+            const formatAddr = (addr: string) => `${addr.slice(0, 6)}...${addr.slice(-4)}`;
+            pastRounds.push({
+              roundId,
+              luckyNumber: Number(result.luckyNumber),
+              winners: result.winners.map((w: string) => formatAddr(w)),
+              payouts: result.payouts.map((p: bigint) => ethers.formatEther(p)),
+              totalPool: '—', // totalPool not returned by getRoundResults
+              hasExactMatch: result.hasExactMatch,
+            });
+          }
+        } catch {
+          // Round not settled yet or doesn't exist — skip
+        }
+      }
+
+      setRounds(pastRounds);
+    } catch (error) {
+      console.error('Failed to fetch past rounds:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [provider]);
 
   useEffect(() => {
-    // Simulated past rounds - in production, fetch from contract
-    const mockRounds: RoundResult[] = [
-      {
-        roundId: 1,
-        luckyNumber: 47,
-        winners: ['0x1234...5678', '0xabcd...efgh'],
-        payouts: ['0.025', '0.015'],
-        totalPool: '0.05',
-        hasExactMatch: true,
-      },
-    ];
-    
-    setTimeout(() => {
-      setRounds(mockRounds);
-      setIsLoading(false);
-    }, 1000);
-  }, []);
+    fetchPastRounds();
+  }, [fetchPastRounds]);
 
   if (isLoading) {
     return (

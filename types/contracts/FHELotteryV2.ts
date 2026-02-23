@@ -33,7 +33,7 @@ export interface FHELotteryV2Interface extends Interface {
       | "MAX_PLAYERS"
       | "PLATFORM_FEE_BPS"
       | "ROUND_DURATION"
-      | "adminSettle"
+      | "acceptOwnership"
       | "canClaimRefund"
       | "canStartNewRound"
       | "claimRefund"
@@ -43,15 +43,12 @@ export interface FHELotteryV2Interface extends Interface {
       | "finalizeSettlement"
       | "forceNewRound"
       | "getCurrentRound"
-      | "getDistanceHandles"
-      | "getGuessHandles"
-      | "getLuckyNumberHandle"
       | "getPlayerGuesses"
       | "getRoundResults"
-      | "getSettlementStatus"
       | "getTimeRemaining"
       | "hasClaimedRefund"
       | "owner"
+      | "pendingOwner"
       | "platformWallet"
       | "playerContributions"
       | "playerGuessIndices"
@@ -70,6 +67,7 @@ export interface FHELotteryV2Interface extends Interface {
       | "DecryptionRequested"
       | "GuessSubmitted"
       | "NoWinnerRound"
+      | "OwnershipTransferStarted"
       | "PlatformFeeCollected"
       | "PublicDecryptionVerified"
       | "RefundClaimed"
@@ -104,8 +102,8 @@ export interface FHELotteryV2Interface extends Interface {
     values?: undefined
   ): string;
   encodeFunctionData(
-    functionFragment: "adminSettle",
-    values: [BigNumberish, BigNumberish, BigNumberish[]]
+    functionFragment: "acceptOwnership",
+    values?: undefined
   ): string;
   encodeFunctionData(
     functionFragment: "canClaimRefund",
@@ -144,27 +142,11 @@ export interface FHELotteryV2Interface extends Interface {
     values?: undefined
   ): string;
   encodeFunctionData(
-    functionFragment: "getDistanceHandles",
-    values: [BigNumberish]
-  ): string;
-  encodeFunctionData(
-    functionFragment: "getGuessHandles",
-    values: [BigNumberish, AddressLike]
-  ): string;
-  encodeFunctionData(
-    functionFragment: "getLuckyNumberHandle",
-    values: [BigNumberish]
-  ): string;
-  encodeFunctionData(
     functionFragment: "getPlayerGuesses",
     values: [BigNumberish, AddressLike]
   ): string;
   encodeFunctionData(
     functionFragment: "getRoundResults",
-    values: [BigNumberish]
-  ): string;
-  encodeFunctionData(
-    functionFragment: "getSettlementStatus",
     values: [BigNumberish]
   ): string;
   encodeFunctionData(
@@ -176,6 +158,10 @@ export interface FHELotteryV2Interface extends Interface {
     values: [BigNumberish, AddressLike]
   ): string;
   encodeFunctionData(functionFragment: "owner", values?: undefined): string;
+  encodeFunctionData(
+    functionFragment: "pendingOwner",
+    values?: undefined
+  ): string;
   encodeFunctionData(
     functionFragment: "platformWallet",
     values?: undefined
@@ -244,7 +230,7 @@ export interface FHELotteryV2Interface extends Interface {
     data: BytesLike
   ): Result;
   decodeFunctionResult(
-    functionFragment: "adminSettle",
+    functionFragment: "acceptOwnership",
     data: BytesLike
   ): Result;
   decodeFunctionResult(
@@ -284,27 +270,11 @@ export interface FHELotteryV2Interface extends Interface {
     data: BytesLike
   ): Result;
   decodeFunctionResult(
-    functionFragment: "getDistanceHandles",
-    data: BytesLike
-  ): Result;
-  decodeFunctionResult(
-    functionFragment: "getGuessHandles",
-    data: BytesLike
-  ): Result;
-  decodeFunctionResult(
-    functionFragment: "getLuckyNumberHandle",
-    data: BytesLike
-  ): Result;
-  decodeFunctionResult(
     functionFragment: "getPlayerGuesses",
     data: BytesLike
   ): Result;
   decodeFunctionResult(
     functionFragment: "getRoundResults",
-    data: BytesLike
-  ): Result;
-  decodeFunctionResult(
-    functionFragment: "getSettlementStatus",
     data: BytesLike
   ): Result;
   decodeFunctionResult(
@@ -316,6 +286,10 @@ export interface FHELotteryV2Interface extends Interface {
     data: BytesLike
   ): Result;
   decodeFunctionResult(functionFragment: "owner", data: BytesLike): Result;
+  decodeFunctionResult(
+    functionFragment: "pendingOwner",
+    data: BytesLike
+  ): Result;
   decodeFunctionResult(
     functionFragment: "platformWallet",
     data: BytesLike
@@ -399,6 +373,19 @@ export namespace NoWinnerRoundEvent {
   export interface OutputObject {
     roundId: bigint;
     luckyNumber: bigint;
+  }
+  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
+  export type Filter = TypedDeferredTopicFilter<Event>;
+  export type Log = TypedEventLog<Event>;
+  export type LogDescription = TypedLogDescription<Event>;
+}
+
+export namespace OwnershipTransferStartedEvent {
+  export type InputTuple = [previousOwner: AddressLike, newOwner: AddressLike];
+  export type OutputTuple = [previousOwner: string, newOwner: string];
+  export interface OutputObject {
+    previousOwner: string;
+    newOwner: string;
   }
   export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
   export type Filter = TypedDeferredTopicFilter<Event>;
@@ -585,15 +572,7 @@ export interface FHELotteryV2 extends BaseContract {
 
   ROUND_DURATION: TypedContractMethod<[], [bigint], "view">;
 
-  adminSettle: TypedContractMethod<
-    [
-      _roundId: BigNumberish,
-      _luckyNumber: BigNumberish,
-      _distances: BigNumberish[]
-    ],
-    [void],
-    "nonpayable"
-  >;
+  acceptOwnership: TypedContractMethod<[], [void], "nonpayable">;
 
   canClaimRefund: TypedContractMethod<
     [_roundId: BigNumberish, _player: AddressLike],
@@ -644,24 +623,6 @@ export interface FHELotteryV2 extends BaseContract {
     "view"
   >;
 
-  getDistanceHandles: TypedContractMethod<
-    [_roundId: BigNumberish],
-    [string[]],
-    "view"
-  >;
-
-  getGuessHandles: TypedContractMethod<
-    [_roundId: BigNumberish, _player: AddressLike],
-    [string[]],
-    "view"
-  >;
-
-  getLuckyNumberHandle: TypedContractMethod<
-    [_roundId: BigNumberish],
-    [string],
-    "view"
-  >;
-
   getPlayerGuesses: TypedContractMethod<
     [_roundId: BigNumberish, _player: AddressLike],
     [[bigint[], bigint] & { guessIndices: bigint[]; contribution: bigint }],
@@ -682,20 +643,6 @@ export interface FHELotteryV2 extends BaseContract {
     "view"
   >;
 
-  getSettlementStatus: TypedContractMethod<
-    [_roundId: BigNumberish],
-    [
-      [boolean, boolean, bigint, boolean, bigint] & {
-        isEnded: boolean;
-        decryptionRequested: boolean;
-        decryptionRequestedAt: bigint;
-        isSettled: boolean;
-        guessCount: bigint;
-      }
-    ],
-    "view"
-  >;
-
   getTimeRemaining: TypedContractMethod<[], [bigint], "view">;
 
   hasClaimedRefund: TypedContractMethod<
@@ -705,6 +652,8 @@ export interface FHELotteryV2 extends BaseContract {
   >;
 
   owner: TypedContractMethod<[], [string], "view">;
+
+  pendingOwner: TypedContractMethod<[], [string], "view">;
 
   platformWallet: TypedContractMethod<[], [string], "view">;
 
@@ -831,16 +780,8 @@ export interface FHELotteryV2 extends BaseContract {
     nameOrSignature: "ROUND_DURATION"
   ): TypedContractMethod<[], [bigint], "view">;
   getFunction(
-    nameOrSignature: "adminSettle"
-  ): TypedContractMethod<
-    [
-      _roundId: BigNumberish,
-      _luckyNumber: BigNumberish,
-      _distances: BigNumberish[]
-    ],
-    [void],
-    "nonpayable"
-  >;
+    nameOrSignature: "acceptOwnership"
+  ): TypedContractMethod<[], [void], "nonpayable">;
   getFunction(
     nameOrSignature: "canClaimRefund"
   ): TypedContractMethod<
@@ -896,19 +837,6 @@ export interface FHELotteryV2 extends BaseContract {
     "view"
   >;
   getFunction(
-    nameOrSignature: "getDistanceHandles"
-  ): TypedContractMethod<[_roundId: BigNumberish], [string[]], "view">;
-  getFunction(
-    nameOrSignature: "getGuessHandles"
-  ): TypedContractMethod<
-    [_roundId: BigNumberish, _player: AddressLike],
-    [string[]],
-    "view"
-  >;
-  getFunction(
-    nameOrSignature: "getLuckyNumberHandle"
-  ): TypedContractMethod<[_roundId: BigNumberish], [string], "view">;
-  getFunction(
     nameOrSignature: "getPlayerGuesses"
   ): TypedContractMethod<
     [_roundId: BigNumberish, _player: AddressLike],
@@ -931,21 +859,6 @@ export interface FHELotteryV2 extends BaseContract {
     "view"
   >;
   getFunction(
-    nameOrSignature: "getSettlementStatus"
-  ): TypedContractMethod<
-    [_roundId: BigNumberish],
-    [
-      [boolean, boolean, bigint, boolean, bigint] & {
-        isEnded: boolean;
-        decryptionRequested: boolean;
-        decryptionRequestedAt: bigint;
-        isSettled: boolean;
-        guessCount: bigint;
-      }
-    ],
-    "view"
-  >;
-  getFunction(
     nameOrSignature: "getTimeRemaining"
   ): TypedContractMethod<[], [bigint], "view">;
   getFunction(
@@ -957,6 +870,9 @@ export interface FHELotteryV2 extends BaseContract {
   >;
   getFunction(
     nameOrSignature: "owner"
+  ): TypedContractMethod<[], [string], "view">;
+  getFunction(
+    nameOrSignature: "pendingOwner"
   ): TypedContractMethod<[], [string], "view">;
   getFunction(
     nameOrSignature: "platformWallet"
@@ -1079,6 +995,13 @@ export interface FHELotteryV2 extends BaseContract {
     NoWinnerRoundEvent.OutputObject
   >;
   getEvent(
+    key: "OwnershipTransferStarted"
+  ): TypedContractEvent<
+    OwnershipTransferStartedEvent.InputTuple,
+    OwnershipTransferStartedEvent.OutputTuple,
+    OwnershipTransferStartedEvent.OutputObject
+  >;
+  getEvent(
     key: "PlatformFeeCollected"
   ): TypedContractEvent<
     PlatformFeeCollectedEvent.InputTuple,
@@ -1153,6 +1076,17 @@ export interface FHELotteryV2 extends BaseContract {
       NoWinnerRoundEvent.InputTuple,
       NoWinnerRoundEvent.OutputTuple,
       NoWinnerRoundEvent.OutputObject
+    >;
+
+    "OwnershipTransferStarted(address,address)": TypedContractEvent<
+      OwnershipTransferStartedEvent.InputTuple,
+      OwnershipTransferStartedEvent.OutputTuple,
+      OwnershipTransferStartedEvent.OutputObject
+    >;
+    OwnershipTransferStarted: TypedContractEvent<
+      OwnershipTransferStartedEvent.InputTuple,
+      OwnershipTransferStartedEvent.OutputTuple,
+      OwnershipTransferStartedEvent.OutputObject
     >;
 
     "PlatformFeeCollected(uint256,uint256)": TypedContractEvent<

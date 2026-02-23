@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.24;
+pragma solidity ^0.8.26;
+
+import { externalEuint8 } from "@fhevm/solidity/lib/FHE.sol";
 
 /**
  * @title IFHELottery
- * @notice Interface for the FHE Lottery contract
+ * @notice Interface for the FHELotteryV2 contract
  */
 interface IFHELottery {
     // Events
@@ -14,11 +16,14 @@ interface IFHELottery {
     event RefundClaimed(uint256 indexed roundId, address indexed player, uint256 amount);
     event PlatformFeeCollected(uint256 indexed roundId, uint256 amount);
     event WinnerRevealed(uint256 indexed roundId, address indexed winner, uint8 guess, uint256 payout);
+    event DecryptionRequested(uint256 indexed roundId);
+    event OwnershipTransferStarted(address indexed previousOwner, address indexed newOwner);
 
     // Core functions
-    function submitGuess(bytes calldata _encryptedGuess, bytes calldata _inputProof) external payable;
-    function submitMultipleGuesses(bytes[] calldata _encryptedGuesses, bytes[] calldata _inputProofs) external payable;
-    function initiateSettlement(uint256 _roundId) external;
+    function submitGuess(externalEuint8 _encryptedGuess, bytes calldata _inputProof) external payable;
+    function submitMultipleGuesses(externalEuint8[] calldata _encryptedGuesses, bytes[] calldata _inputProofs) external payable;
+    function requestSettlement(uint256 _roundId) external;
+    function finalizeSettlement(uint256 _roundId, uint8 _luckyNumber, uint8[] calldata _distances, bytes calldata _decryptionProof) external;
     function claimRefund(uint256 _roundId) external;
 
     // View functions
@@ -49,6 +54,14 @@ interface IFHELottery {
     function getTimeRemaining() external view returns (uint256);
     function canStartNewRound() external view returns (bool);
 
+    // Admin functions
+    function forceNewRound() external;
+    function skipStuckRound() external;
+    function setPlatformWallet(address _newWallet) external;
+    function emergencyWithdraw() external;
+    function transferOwnership(address _newOwner) external;
+    function acceptOwnership() external;
+
     // Constants
     function ENTRY_FEE() external view returns (uint256);
     function ROUND_DURATION() external view returns (uint256);
@@ -56,4 +69,5 @@ interface IFHELottery {
     function MAX_PLAYERS() external view returns (uint256);
     function MAX_NUMBER() external view returns (uint256);
     function PLATFORM_FEE_BPS() external view returns (uint256);
+    function FINALITY_DELAY() external view returns (uint256);
 }
