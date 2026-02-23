@@ -1,0 +1,30 @@
+{
+  "name": "fhe-lottery",
+  "version": "1.0.0",
+  "description": "Private onchain lottery using Zama's fully homomorphic encryption",
+  "scripts": {
+    "compile": "hardhat compile",
+    "test": "hardhat test",
+    "deploy:local": "hardhat run scripts/deploy.js --network localhost",
+    "deploy:sepolia": "hardhat run scripts/deploy.js --network sepolia",
+    "node": "hardhat node",
+    "dev": "cd frontend && npm run dev",
+    "build": "cd frontend && npm run build",
+    "install:all": "npm install && cd frontend && npm install",
+    "typechain": "hardhat compile"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^4.0.0",
+    "@fhevm/hardhat-plugin": "^0.3.0-4",
+    "@types/chai": "^4.3.11",
+    "@types/mocha": "^10.0.6",
+    "@types/node": "^20.10.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.3",
+    "hardhat": "^2.19.4"
+  },
+  "dependencies": {
+    "@fhevm/solidity": "^0.10.0",
+    "dotenv": "^16.3.1"
+  }
+}
