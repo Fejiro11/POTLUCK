@@ -60,6 +60,7 @@ contract FHELotteryV2 is ZamaEthereumConfig {
     mapping(uint256 => mapping(address => uint256[])) public playerGuessIndices;
     mapping(uint256 => mapping(address => bool)) public hasClaimedRefund;
     mapping(uint256 => mapping(address => uint256)) public playerContributions;
+    mapping(uint256 => mapping(address => uint256)) public pendingPayouts;
 
     // ============ Events ============
     event RoundStarted(uint256 indexed roundId, uint256 startTime, uint256 endTime);
@@ -72,6 +73,8 @@ contract FHELotteryV2 is ZamaEthereumConfig {
     event DecryptionRequested(uint256 indexed roundId);
     event RoundActivated(uint256 indexed roundId, uint256 activatedAt, uint256 endTime);
     event OwnershipTransferStarted(address indexed previousOwner, address indexed newOwner);
+    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
+    event PayoutFailed(uint256 indexed roundId, address indexed recipient, uint256 amount);
 
     // ============ Modifiers ============
     modifier onlyOwner() {
@@ -252,6 +255,7 @@ contract FHELotteryV2 is ZamaEthereumConfig {
     function requestSettlement(uint256 _roundId) external roundEnded(_roundId) {
         Round storage round = rounds[_roundId];
         require(!round.isSettled, "Already settled");
+        require(round.decryptionRequestedAt == 0, "Decryption already requested");
         require(round.guessCount > 0, "No guesses");
         
         // Calculate platform fee
@@ -352,12 +356,8 @@ contract FHELotteryV2 is ZamaEthereumConfig {
         if (!hasExact) {
             // No winner round - isSettled already set in finalizeSettlement (CEI pattern)
             
-            // Transfer platform fee
-            if (round.platformFee > 0) {
-                (bool success, ) = platformWallet.call{value: round.platformFee}("");
-                require(success, "Platform fee transfer failed");
-                emit PlatformFeeCollected(_roundId, round.platformFee);
-            }
+            // Transfer platform fee (safe: store as pending if transfer fails)
+            _safeTransferPlatformFee(_roundId);
             
             emit NoWinnerRound(_roundId, round.revealedLuckyNumber);
             _startNewRound();
@@ -394,6 +394,7 @@ contract FHELotteryV2 is ZamaEthereumConfig {
         uint256 winnerCount = 0;
         uint256 prizePool = round.totalPool - round.platformFee;
         uint256[] memory payoutShares = _calculatePayoutShares(round.maxWinners);
+        uint256 totalPaid = 0;
         
         for (uint256 i = 0; i < sortedIndices.length && winnerCount < round.maxWinners; i++) {
             uint256 idx = sortedIndices[i];
@@ -410,28 +411,34 @@ contract FHELotteryV2 is ZamaEthereumConfig {
             
             if (!alreadyWinner) {
                 guesses[idx].isWinner = true;
+                winnerCount++;
                 
-                uint256 payout = (prizePool * payoutShares[winnerCount]) / 10000;
+                // M-1 fix: last winner gets remainder to prevent dust
+                uint256 payout;
+                if (winnerCount == round.maxWinners || i == sortedIndices.length - 1) {
+                    payout = prizePool - totalPaid;
+                } else {
+                    payout = (prizePool * payoutShares[winnerCount - 1]) / 10000;
+                }
+                totalPaid += payout;
+                
                 round.winners.push(winner);
                 round.winnerPayouts.push(payout);
                 
-                // Transfer payout
+                // H-2 fix: pull pattern — if transfer fails, store as pending
                 (bool success, ) = winner.call{value: payout}("");
-                require(success, "Payout failed");
+                if (!success) {
+                    pendingPayouts[_roundId][winner] += payout;
+                    emit PayoutFailed(_roundId, winner, payout);
+                }
                 
                 emit WinnerRevealed(_roundId, winner, _distances[idx] == 0 ? 
                     round.revealedLuckyNumber : 0, payout);
-                
-                winnerCount++;
             }
         }
         
-        // Transfer platform fee
-        if (round.platformFee > 0) {
-            (bool success, ) = platformWallet.call{value: round.platformFee}("");
-            require(success, "Platform fee transfer failed");
-            emit PlatformFeeCollected(_roundId, round.platformFee);
-        }
+        // Transfer platform fee (safe: store as pending if transfer fails)
+        _safeTransferPlatformFee(_roundId);
         
         // round.isSettled already set at function start (CEI pattern)
         
@@ -461,6 +468,20 @@ contract FHELotteryV2 is ZamaEthereumConfig {
         require(success, "Refund transfer failed");
         
         emit RefundClaimed(_roundId, msg.sender, refundAmount);
+    }
+
+    /**
+     * @notice Claim pending payout if auto-transfer failed during settlement
+     * @param _roundId The round to claim from
+     */
+    function claimPayout(uint256 _roundId) external {
+        uint256 amount = pendingPayouts[_roundId][msg.sender];
+        require(amount > 0, "No pending payout");
+        
+        pendingPayouts[_roundId][msg.sender] = 0;
+        
+        (bool success, ) = msg.sender.call{value: amount}("");
+        require(success, "Payout transfer failed");
     }
 
     // ============ Internal Functions ============
@@ -546,6 +567,22 @@ contract FHELotteryV2 is ZamaEthereumConfig {
             // Grant FHE permissions per Zama docs
             FHE.allowThis(distance);
             FHE.allow(distance, guesses[i].player);
+        }
+    }
+
+    /**
+     * @notice Safely transfer platform fee, storing as pending if transfer fails
+     */
+    function _safeTransferPlatformFee(uint256 _roundId) internal {
+        Round storage round = rounds[_roundId];
+        if (round.platformFee > 0) {
+            (bool success, ) = platformWallet.call{value: round.platformFee}("");
+            if (success) {
+                emit PlatformFeeCollected(_roundId, round.platformFee);
+            } else {
+                pendingPayouts[_roundId][platformWallet] += round.platformFee;
+                emit PayoutFailed(_roundId, platformWallet, round.platformFee);
+            }
         }
     }
 
@@ -707,11 +744,7 @@ contract FHELotteryV2 is ZamaEthereumConfig {
         // Calculate and transfer platform fee so claimRefund math is consistent
         if (round.totalPool > 0) {
             round.platformFee = (round.totalPool * PLATFORM_FEE_BPS) / 10000;
-            if (round.platformFee > 0) {
-                (bool success, ) = platformWallet.call{value: round.platformFee}("");
-                require(success, "Platform fee transfer failed");
-                emit PlatformFeeCollected(currentRoundId, round.platformFee);
-            }
+            _safeTransferPlatformFee(currentRoundId);
         }
         
         // Start new round immediately
@@ -724,7 +757,19 @@ contract FHELotteryV2 is ZamaEthereumConfig {
     }
 
     function emergencyWithdraw() external onlyOwner {
-        (bool success, ) = owner.call{value: address(this).balance}("");
+        // Only withdraw excess balance not held by active/unsettled rounds
+        uint256 lockedBalance = 0;
+        for (uint256 i = 1; i <= currentRoundId; i++) {
+            Round storage round = rounds[i];
+            if (!round.isSettled) {
+                lockedBalance += round.totalPool;
+            }
+        }
+        uint256 withdrawable = address(this).balance > lockedBalance 
+            ? address(this).balance - lockedBalance 
+            : 0;
+        require(withdrawable > 0, "No withdrawable balance");
+        (bool success, ) = owner.call{value: withdrawable}("");
         require(success, "Withdraw failed");
     }
 
@@ -736,8 +781,10 @@ contract FHELotteryV2 is ZamaEthereumConfig {
 
     function acceptOwnership() external {
         require(msg.sender == pendingOwner, "Not pending owner");
+        address previousOwner = owner;
         owner = pendingOwner;
         pendingOwner = address(0);
+        emit OwnershipTransferred(previousOwner, owner);
     }
 
     receive() external payable {}

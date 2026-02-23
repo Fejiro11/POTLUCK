@@ -328,20 +328,67 @@ describe("FHELotteryV2", function () {
       ).to.not.be.reverted;
     });
 
-    it("should allow emergency withdraw by owner", async function () {
-      // Send some ETH to contract
+    it("should allow emergency withdraw of excess balance only", async function () {
+      // Send some extra ETH to contract (not part of any round)
       await signers.deployer.sendTransaction({
         to: lotteryAddress,
         value: ethers.parseEther("0.1"),
       });
 
-      const balanceBefore = await ethers.provider.getBalance(signers.deployer.address);
-
       const tx = await lottery.emergencyWithdraw();
       await tx.wait();
 
+      // Contract should still have 0 since active round has no pool
       const contractBalance = await ethers.provider.getBalance(lotteryAddress);
       expect(contractBalance).to.equal(0);
+    });
+
+    it("should protect active round pool from emergency withdraw", async function () {
+      // Submit a guess to create an active round with funds
+      const encryptedGuess = await fhevm
+        .createEncryptedInput(lotteryAddress, signers.alice.address)
+        .add8(42)
+        .encrypt();
+
+      await lottery.connect(signers.alice).submitGuess(
+        encryptedGuess.handles[0],
+        encryptedGuess.inputProof,
+        { value: ENTRY_FEE }
+      );
+
+      // Try to withdraw — should fail since all balance is in active round
+      await expect(
+        lottery.emergencyWithdraw()
+      ).to.be.revertedWith("No withdrawable balance");
+    });
+  });
+
+  describe("Audit Fix Verification", function () {
+    it("should allow skipStuckRound on a waiting round (no guesses)", async function () {
+      // Round is in waiting state (endTime == 0)
+      expect(await lottery.isRoundWaiting()).to.equal(true);
+
+      // Owner can skip it
+      await lottery.skipStuckRound();
+
+      // New round should be created
+      expect(await lottery.currentRoundId()).to.equal(2);
+      expect(await lottery.isRoundWaiting()).to.equal(true);
+    });
+
+    it("should emit OwnershipTransferred on acceptOwnership", async function () {
+      await lottery.transferOwnership(signers.alice.address);
+
+      await expect(lottery.connect(signers.alice).acceptOwnership())
+        .to.emit(lottery, "OwnershipTransferred")
+        .withArgs(signers.deployer.address, signers.alice.address);
+    });
+
+    it("should have claimPayout function available", async function () {
+      // No pending payout should revert
+      await expect(
+        lottery.connect(signers.alice).claimPayout(1)
+      ).to.be.revertedWith("No pending payout");
     });
   });
 });

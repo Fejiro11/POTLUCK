@@ -36,6 +36,7 @@ export interface IFHELotteryInterface extends Interface {
       | "acceptOwnership"
       | "canClaimRefund"
       | "canStartNewRound"
+      | "claimPayout"
       | "claimRefund"
       | "emergencyWithdraw"
       | "finalizeSettlement"
@@ -44,6 +45,7 @@ export interface IFHELotteryInterface extends Interface {
       | "getPlayerGuesses"
       | "getRoundResults"
       | "getTimeRemaining"
+      | "isRoundWaiting"
       | "requestSettlement"
       | "setPlatformWallet"
       | "skipStuckRound"
@@ -58,8 +60,11 @@ export interface IFHELotteryInterface extends Interface {
       | "GuessSubmitted"
       | "NoWinnerRound"
       | "OwnershipTransferStarted"
+      | "OwnershipTransferred"
+      | "PayoutFailed"
       | "PlatformFeeCollected"
       | "RefundClaimed"
+      | "RoundActivated"
       | "RoundSettled"
       | "RoundStarted"
       | "WinnerRevealed"
@@ -103,6 +108,10 @@ export interface IFHELotteryInterface extends Interface {
     values?: undefined
   ): string;
   encodeFunctionData(
+    functionFragment: "claimPayout",
+    values: [BigNumberish]
+  ): string;
+  encodeFunctionData(
     functionFragment: "claimRefund",
     values: [BigNumberish]
   ): string;
@@ -132,6 +141,10 @@ export interface IFHELotteryInterface extends Interface {
   ): string;
   encodeFunctionData(
     functionFragment: "getTimeRemaining",
+    values?: undefined
+  ): string;
+  encodeFunctionData(
+    functionFragment: "isRoundWaiting",
     values?: undefined
   ): string;
   encodeFunctionData(
@@ -194,6 +207,10 @@ export interface IFHELotteryInterface extends Interface {
     data: BytesLike
   ): Result;
   decodeFunctionResult(
+    functionFragment: "claimPayout",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
     functionFragment: "claimRefund",
     data: BytesLike
   ): Result;
@@ -223,6 +240,10 @@ export interface IFHELotteryInterface extends Interface {
   ): Result;
   decodeFunctionResult(
     functionFragment: "getTimeRemaining",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "isRoundWaiting",
     data: BytesLike
   ): Result;
   decodeFunctionResult(
@@ -311,6 +332,41 @@ export namespace OwnershipTransferStartedEvent {
   export type LogDescription = TypedLogDescription<Event>;
 }
 
+export namespace OwnershipTransferredEvent {
+  export type InputTuple = [previousOwner: AddressLike, newOwner: AddressLike];
+  export type OutputTuple = [previousOwner: string, newOwner: string];
+  export interface OutputObject {
+    previousOwner: string;
+    newOwner: string;
+  }
+  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
+  export type Filter = TypedDeferredTopicFilter<Event>;
+  export type Log = TypedEventLog<Event>;
+  export type LogDescription = TypedLogDescription<Event>;
+}
+
+export namespace PayoutFailedEvent {
+  export type InputTuple = [
+    roundId: BigNumberish,
+    recipient: AddressLike,
+    amount: BigNumberish
+  ];
+  export type OutputTuple = [
+    roundId: bigint,
+    recipient: string,
+    amount: bigint
+  ];
+  export interface OutputObject {
+    roundId: bigint;
+    recipient: string;
+    amount: bigint;
+  }
+  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
+  export type Filter = TypedDeferredTopicFilter<Event>;
+  export type Log = TypedEventLog<Event>;
+  export type LogDescription = TypedLogDescription<Event>;
+}
+
 export namespace PlatformFeeCollectedEvent {
   export type InputTuple = [roundId: BigNumberish, amount: BigNumberish];
   export type OutputTuple = [roundId: bigint, amount: bigint];
@@ -335,6 +391,28 @@ export namespace RefundClaimedEvent {
     roundId: bigint;
     player: string;
     amount: bigint;
+  }
+  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
+  export type Filter = TypedDeferredTopicFilter<Event>;
+  export type Log = TypedEventLog<Event>;
+  export type LogDescription = TypedLogDescription<Event>;
+}
+
+export namespace RoundActivatedEvent {
+  export type InputTuple = [
+    roundId: BigNumberish,
+    activatedAt: BigNumberish,
+    endTime: BigNumberish
+  ];
+  export type OutputTuple = [
+    roundId: bigint,
+    activatedAt: bigint,
+    endTime: bigint
+  ];
+  export interface OutputObject {
+    roundId: bigint;
+    activatedAt: bigint;
+    endTime: bigint;
   }
   export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
   export type Filter = TypedDeferredTopicFilter<Event>;
@@ -481,6 +559,12 @@ export interface IFHELottery extends BaseContract {
 
   canStartNewRound: TypedContractMethod<[], [boolean], "view">;
 
+  claimPayout: TypedContractMethod<
+    [_roundId: BigNumberish],
+    [void],
+    "nonpayable"
+  >;
+
   claimRefund: TypedContractMethod<
     [_roundId: BigNumberish],
     [void],
@@ -539,6 +623,8 @@ export interface IFHELottery extends BaseContract {
   >;
 
   getTimeRemaining: TypedContractMethod<[], [bigint], "view">;
+
+  isRoundWaiting: TypedContractMethod<[], [boolean], "view">;
 
   requestSettlement: TypedContractMethod<
     [_roundId: BigNumberish],
@@ -611,6 +697,9 @@ export interface IFHELottery extends BaseContract {
     nameOrSignature: "canStartNewRound"
   ): TypedContractMethod<[], [boolean], "view">;
   getFunction(
+    nameOrSignature: "claimPayout"
+  ): TypedContractMethod<[_roundId: BigNumberish], [void], "nonpayable">;
+  getFunction(
     nameOrSignature: "claimRefund"
   ): TypedContractMethod<[_roundId: BigNumberish], [void], "nonpayable">;
   getFunction(
@@ -674,6 +763,9 @@ export interface IFHELottery extends BaseContract {
     nameOrSignature: "getTimeRemaining"
   ): TypedContractMethod<[], [bigint], "view">;
   getFunction(
+    nameOrSignature: "isRoundWaiting"
+  ): TypedContractMethod<[], [boolean], "view">;
+  getFunction(
     nameOrSignature: "requestSettlement"
   ): TypedContractMethod<[_roundId: BigNumberish], [void], "nonpayable">;
   getFunction(
@@ -729,6 +821,20 @@ export interface IFHELottery extends BaseContract {
     OwnershipTransferStartedEvent.OutputObject
   >;
   getEvent(
+    key: "OwnershipTransferred"
+  ): TypedContractEvent<
+    OwnershipTransferredEvent.InputTuple,
+    OwnershipTransferredEvent.OutputTuple,
+    OwnershipTransferredEvent.OutputObject
+  >;
+  getEvent(
+    key: "PayoutFailed"
+  ): TypedContractEvent<
+    PayoutFailedEvent.InputTuple,
+    PayoutFailedEvent.OutputTuple,
+    PayoutFailedEvent.OutputObject
+  >;
+  getEvent(
     key: "PlatformFeeCollected"
   ): TypedContractEvent<
     PlatformFeeCollectedEvent.InputTuple,
@@ -741,6 +847,13 @@ export interface IFHELottery extends BaseContract {
     RefundClaimedEvent.InputTuple,
     RefundClaimedEvent.OutputTuple,
     RefundClaimedEvent.OutputObject
+  >;
+  getEvent(
+    key: "RoundActivated"
+  ): TypedContractEvent<
+    RoundActivatedEvent.InputTuple,
+    RoundActivatedEvent.OutputTuple,
+    RoundActivatedEvent.OutputObject
   >;
   getEvent(
     key: "RoundSettled"
@@ -809,6 +922,28 @@ export interface IFHELottery extends BaseContract {
       OwnershipTransferStartedEvent.OutputObject
     >;
 
+    "OwnershipTransferred(address,address)": TypedContractEvent<
+      OwnershipTransferredEvent.InputTuple,
+      OwnershipTransferredEvent.OutputTuple,
+      OwnershipTransferredEvent.OutputObject
+    >;
+    OwnershipTransferred: TypedContractEvent<
+      OwnershipTransferredEvent.InputTuple,
+      OwnershipTransferredEvent.OutputTuple,
+      OwnershipTransferredEvent.OutputObject
+    >;
+
+    "PayoutFailed(uint256,address,uint256)": TypedContractEvent<
+      PayoutFailedEvent.InputTuple,
+      PayoutFailedEvent.OutputTuple,
+      PayoutFailedEvent.OutputObject
+    >;
+    PayoutFailed: TypedContractEvent<
+      PayoutFailedEvent.InputTuple,
+      PayoutFailedEvent.OutputTuple,
+      PayoutFailedEvent.OutputObject
+    >;
+
     "PlatformFeeCollected(uint256,uint256)": TypedContractEvent<
       PlatformFeeCollectedEvent.InputTuple,
       PlatformFeeCollectedEvent.OutputTuple,
@@ -829,6 +964,17 @@ export interface IFHELottery extends BaseContract {
       RefundClaimedEvent.InputTuple,
       RefundClaimedEvent.OutputTuple,
       RefundClaimedEvent.OutputObject
+    >;
+
+    "RoundActivated(uint256,uint256,uint256)": TypedContractEvent<
+      RoundActivatedEvent.InputTuple,
+      RoundActivatedEvent.OutputTuple,
+      RoundActivatedEvent.OutputObject
+    >;
+    RoundActivated: TypedContractEvent<
+      RoundActivatedEvent.InputTuple,
+      RoundActivatedEvent.OutputTuple,
+      RoundActivatedEvent.OutputObject
     >;
 
     "RoundSettled(uint256,uint8,address[],uint256[])": TypedContractEvent<

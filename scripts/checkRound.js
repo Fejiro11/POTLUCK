@@ -32,13 +32,17 @@ async function main() {
   const now = Math.floor(Date.now() / 1000);
   console.log("Current time:", new Date(now * 1000).toISOString());
   
-  if (timeRemaining == 0n) {
+  const isWaiting = await lottery.isRoundWaiting();
+  
+  if (isWaiting) {
+    console.log("\n⏳ Round is WAITING for first guess (timer not started yet)");
+  } else if (timeRemaining == 0n) {
     console.log("\n⚠️  Round has ENDED");
     if (!roundInfo.isSettled) {
-      console.log("   Round is NOT settled - needs skipStuckRound()");
+      console.log("   Round is NOT settled - needs settlement or skipStuckRound()");
     }
   } else {
-    console.log("\n✅ Round is ACTIVE");
+    console.log("\n✅ Round is ACTIVE (timer running)");
   }
 }
 

@@ -38,6 +38,9 @@ async function main() {
   const timeRemaining = await lottery.getTimeRemaining();
   console.log("Time remaining:", timeRemaining.toString(), "seconds");
 
+  const isWaiting = await lottery.isRoundWaiting();
+  console.log("Is waiting for first guess:", isWaiting);
+
   if (timeRemaining > 0n) {
     console.log("Round has not ended yet. Cannot skip.");
     process.exit(0);
@@ -46,6 +49,15 @@ async function main() {
   if (roundInfo.isSettled) {
     console.log("Round is already settled.");
     process.exit(0);
+  }
+
+  if (isWaiting && roundInfo.guessCount === 0n) {
+    console.log("\n⏳ Round is waiting for first guess with no players.");
+    console.log("   This is normal — the round will stay open until someone submits.");
+    console.log("   Use --force flag if you still want to skip.");
+    if (!process.argv.includes("--force")) {
+      process.exit(0);
+    }
   }
 
   console.log("\nSkipping stuck round...");

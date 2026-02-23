@@ -62,7 +62,8 @@ export default function Home() {
               <h2 className="text-2xl font-bold mb-6">Pick Your Number</h2>
               <NumberPicker 
                 selectedNumber={selectedNumber} 
-                onSelect={setSelectedNumber} 
+                onSelect={setSelectedNumber}
+                onClear={() => setSelectedNumber(null)} 
               />
               
               {isConnected && selectedNumber !== null && (

@@ -6,9 +6,10 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 interface NumberPickerProps {
   selectedNumber: number | null;
   onSelect: (num: number) => void;
+  onClear?: () => void;
 }
 
-export function NumberPicker({ selectedNumber, onSelect }: NumberPickerProps) {
+export function NumberPicker({ selectedNumber, onSelect, onClear }: NumberPickerProps) {
   const [page, setPage] = useState(0);
   const numbersPerPage = 20;
   const totalNumbers = 101; // 0 to 100
@@ -107,7 +108,7 @@ export function NumberPicker({ selectedNumber, onSelect }: NumberPickerProps) {
           <div className="inline-flex items-center gap-3 glass rounded-xl px-6 py-3">
             <span className="text-4xl font-bold gradient-text">{selectedNumber}</span>
             <button
-              onClick={() => onSelect(selectedNumber)}
+              onClick={() => onClear?.()}
               className="text-dark-400 hover:text-white text-sm"
             >
               ✕ Clear

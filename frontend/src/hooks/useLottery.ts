@@ -122,11 +122,6 @@ export function useLottery(): UseLotteryReturn {
     const userAddress = await signer.getAddress();
 
     try {
-      // FHE encryption using the FHEVM provider
-      console.log(`Encrypting guess: ${number} using FHE...`);
-      console.log('Contract address:', CONTRACTS.FHE_LOTTERY);
-      console.log('User address:', userAddress);
-      
       // Encrypt the guess using the FHEVM hook
       const encryptedInputs = await encryptUint8(
         CONTRACTS.FHE_LOTTERY,
@@ -136,18 +131,13 @@ export function useLottery(): UseLotteryReturn {
       
       const encrypted = encryptedInputs.handles[0];
       const inputProof = encryptedInputs.inputProof;
-      console.log('Encryption complete');
-      console.log('Handle:', encrypted);
-      console.log('Proof length:', inputProof?.length || 0);
 
-      console.log('Submitting transaction...');
       const tx = await contract.submitGuess(encrypted, inputProof, {
         value: ethers.parseEther(ENTRY_FEE),
       });
 
       console.log('Transaction submitted:', tx.hash);
       await tx.wait();
-      console.log('Transaction confirmed');
 
       // Refresh round info
       await refreshRound();

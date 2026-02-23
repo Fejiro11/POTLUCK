@@ -22,7 +22,7 @@ export default function RootLayout({
         {/* Load Zama Relayer SDK from CDN - beforeInteractive ensures it loads early */}
         <Script 
           src="https://cdn.zama.org/relayer-sdk-js/0.3.0-8/relayer-sdk-js.umd.cjs"
-          strategy="beforeInteractive"
+          strategy="afterInteractive"
           id="zama-relayer-sdk"
         />
         <Providers>

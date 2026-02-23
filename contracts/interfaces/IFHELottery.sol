@@ -17,7 +17,10 @@ interface IFHELottery {
     event PlatformFeeCollected(uint256 indexed roundId, uint256 amount);
     event WinnerRevealed(uint256 indexed roundId, address indexed winner, uint8 guess, uint256 payout);
     event DecryptionRequested(uint256 indexed roundId);
+    event RoundActivated(uint256 indexed roundId, uint256 activatedAt, uint256 endTime);
     event OwnershipTransferStarted(address indexed previousOwner, address indexed newOwner);
+    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
+    event PayoutFailed(uint256 indexed roundId, address indexed recipient, uint256 amount);
 
     // Core functions
     function submitGuess(externalEuint8 _encryptedGuess, bytes calldata _inputProof) external payable;
@@ -25,6 +28,7 @@ interface IFHELottery {
     function requestSettlement(uint256 _roundId) external;
     function finalizeSettlement(uint256 _roundId, uint8 _luckyNumber, uint8[] calldata _distances, bytes calldata _decryptionProof) external;
     function claimRefund(uint256 _roundId) external;
+    function claimPayout(uint256 _roundId) external;
 
     // View functions
     function getCurrentRound() external view returns (
@@ -52,6 +56,7 @@ interface IFHELottery {
 
     function canClaimRefund(uint256 _roundId, address _player) external view returns (bool);
     function getTimeRemaining() external view returns (uint256);
+    function isRoundWaiting() external view returns (bool);
     function canStartNewRound() external view returns (bool);
 
     // Admin functions

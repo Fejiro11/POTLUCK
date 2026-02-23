@@ -88,6 +88,51 @@ export const FHE_LOTTERY_ABI = [
   },
   {
     inputs: [],
+    name: "canStartNewRound",
+    outputs: [{ name: "", type: "bool" }],
+    stateMutability: "view",
+    type: "function"
+  },
+  {
+    inputs: [],
+    name: "COOLING_PERIOD",
+    outputs: [{ name: "", type: "uint256" }],
+    stateMutability: "view",
+    type: "function"
+  },
+  {
+    inputs: [],
+    name: "MAX_PLAYERS",
+    outputs: [{ name: "", type: "uint256" }],
+    stateMutability: "view",
+    type: "function"
+  },
+  {
+    inputs: [],
+    name: "MAX_NUMBER",
+    outputs: [{ name: "", type: "uint256" }],
+    stateMutability: "view",
+    type: "function"
+  },
+  {
+    inputs: [],
+    name: "PLATFORM_FEE_BPS",
+    outputs: [{ name: "", type: "uint256" }],
+    stateMutability: "view",
+    type: "function"
+  },
+  {
+    inputs: [
+      { name: "", type: "uint256" },
+      { name: "", type: "address" }
+    ],
+    name: "pendingPayouts",
+    outputs: [{ name: "", type: "uint256" }],
+    stateMutability: "view",
+    type: "function"
+  },
+  {
+    inputs: [],
     name: "FINALITY_DELAY",
     outputs: [{ name: "", type: "uint256" }],
     stateMutability: "view",
@@ -157,6 +202,13 @@ export const FHE_LOTTERY_ABI = [
   {
     inputs: [{ name: "_roundId", type: "uint256" }],
     name: "claimRefund",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function"
+  },
+  {
+    inputs: [{ name: "_roundId", type: "uint256" }],
+    name: "claimPayout",
     outputs: [],
     stateMutability: "nonpayable",
     type: "function"
@@ -276,10 +328,38 @@ export const FHE_LOTTERY_ABI = [
   {
     anonymous: false,
     inputs: [
+      { indexed: true, name: "roundId", type: "uint256" },
+      { indexed: false, name: "amount", type: "uint256" }
+    ],
+    name: "PlatformFeeCollected",
+    type: "event"
+  },
+  {
+    anonymous: false,
+    inputs: [
       { indexed: true, name: "previousOwner", type: "address" },
       { indexed: true, name: "newOwner", type: "address" }
     ],
     name: "OwnershipTransferStarted",
+    type: "event"
+  },
+  {
+    anonymous: false,
+    inputs: [
+      { indexed: true, name: "previousOwner", type: "address" },
+      { indexed: true, name: "newOwner", type: "address" }
+    ],
+    name: "OwnershipTransferred",
+    type: "event"
+  },
+  {
+    anonymous: false,
+    inputs: [
+      { indexed: true, name: "roundId", type: "uint256" },
+      { indexed: true, name: "recipient", type: "address" },
+      { indexed: false, name: "amount", type: "uint256" }
+    ],
+    name: "PayoutFailed",
     type: "event"
   },
   {

@@ -36,6 +36,7 @@ export interface FHELotteryV2Interface extends Interface {
       | "acceptOwnership"
       | "canClaimRefund"
       | "canStartNewRound"
+      | "claimPayout"
       | "claimRefund"
       | "confidentialProtocolId"
       | "currentRoundId"
@@ -50,6 +51,7 @@ export interface FHELotteryV2Interface extends Interface {
       | "isRoundWaiting"
       | "owner"
       | "pendingOwner"
+      | "pendingPayouts"
       | "platformWallet"
       | "playerContributions"
       | "playerGuessIndices"
@@ -69,6 +71,8 @@ export interface FHELotteryV2Interface extends Interface {
       | "GuessSubmitted"
       | "NoWinnerRound"
       | "OwnershipTransferStarted"
+      | "OwnershipTransferred"
+      | "PayoutFailed"
       | "PlatformFeeCollected"
       | "PublicDecryptionVerified"
       | "RefundClaimed"
@@ -114,6 +118,10 @@ export interface FHELotteryV2Interface extends Interface {
   encodeFunctionData(
     functionFragment: "canStartNewRound",
     values?: undefined
+  ): string;
+  encodeFunctionData(
+    functionFragment: "claimPayout",
+    values: [BigNumberish]
   ): string;
   encodeFunctionData(
     functionFragment: "claimRefund",
@@ -167,6 +175,10 @@ export interface FHELotteryV2Interface extends Interface {
   encodeFunctionData(
     functionFragment: "pendingOwner",
     values?: undefined
+  ): string;
+  encodeFunctionData(
+    functionFragment: "pendingPayouts",
+    values: [BigNumberish, AddressLike]
   ): string;
   encodeFunctionData(
     functionFragment: "platformWallet",
@@ -248,6 +260,10 @@ export interface FHELotteryV2Interface extends Interface {
     data: BytesLike
   ): Result;
   decodeFunctionResult(
+    functionFragment: "claimPayout",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
     functionFragment: "claimRefund",
     data: BytesLike
   ): Result;
@@ -298,6 +314,10 @@ export interface FHELotteryV2Interface extends Interface {
   decodeFunctionResult(functionFragment: "owner", data: BytesLike): Result;
   decodeFunctionResult(
     functionFragment: "pendingOwner",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "pendingPayouts",
     data: BytesLike
   ): Result;
   decodeFunctionResult(
@@ -396,6 +416,41 @@ export namespace OwnershipTransferStartedEvent {
   export interface OutputObject {
     previousOwner: string;
     newOwner: string;
+  }
+  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
+  export type Filter = TypedDeferredTopicFilter<Event>;
+  export type Log = TypedEventLog<Event>;
+  export type LogDescription = TypedLogDescription<Event>;
+}
+
+export namespace OwnershipTransferredEvent {
+  export type InputTuple = [previousOwner: AddressLike, newOwner: AddressLike];
+  export type OutputTuple = [previousOwner: string, newOwner: string];
+  export interface OutputObject {
+    previousOwner: string;
+    newOwner: string;
+  }
+  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
+  export type Filter = TypedDeferredTopicFilter<Event>;
+  export type Log = TypedEventLog<Event>;
+  export type LogDescription = TypedLogDescription<Event>;
+}
+
+export namespace PayoutFailedEvent {
+  export type InputTuple = [
+    roundId: BigNumberish,
+    recipient: AddressLike,
+    amount: BigNumberish
+  ];
+  export type OutputTuple = [
+    roundId: bigint,
+    recipient: string,
+    amount: bigint
+  ];
+  export interface OutputObject {
+    roundId: bigint;
+    recipient: string;
+    amount: bigint;
   }
   export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
   export type Filter = TypedDeferredTopicFilter<Event>;
@@ -614,6 +669,12 @@ export interface FHELotteryV2 extends BaseContract {
 
   canStartNewRound: TypedContractMethod<[], [boolean], "view">;
 
+  claimPayout: TypedContractMethod<
+    [_roundId: BigNumberish],
+    [void],
+    "nonpayable"
+  >;
+
   claimRefund: TypedContractMethod<
     [_roundId: BigNumberish],
     [void],
@@ -688,6 +749,12 @@ export interface FHELotteryV2 extends BaseContract {
   owner: TypedContractMethod<[], [string], "view">;
 
   pendingOwner: TypedContractMethod<[], [string], "view">;
+
+  pendingPayouts: TypedContractMethod<
+    [arg0: BigNumberish, arg1: AddressLike],
+    [bigint],
+    "view"
+  >;
 
   platformWallet: TypedContractMethod<[], [string], "view">;
 
@@ -827,6 +894,9 @@ export interface FHELotteryV2 extends BaseContract {
     nameOrSignature: "canStartNewRound"
   ): TypedContractMethod<[], [boolean], "view">;
   getFunction(
+    nameOrSignature: "claimPayout"
+  ): TypedContractMethod<[_roundId: BigNumberish], [void], "nonpayable">;
+  getFunction(
     nameOrSignature: "claimRefund"
   ): TypedContractMethod<[_roundId: BigNumberish], [void], "nonpayable">;
   getFunction(
@@ -911,6 +981,13 @@ export interface FHELotteryV2 extends BaseContract {
   getFunction(
     nameOrSignature: "pendingOwner"
   ): TypedContractMethod<[], [string], "view">;
+  getFunction(
+    nameOrSignature: "pendingPayouts"
+  ): TypedContractMethod<
+    [arg0: BigNumberish, arg1: AddressLike],
+    [bigint],
+    "view"
+  >;
   getFunction(
     nameOrSignature: "platformWallet"
   ): TypedContractMethod<[], [string], "view">;
@@ -1039,6 +1116,20 @@ export interface FHELotteryV2 extends BaseContract {
     OwnershipTransferStartedEvent.OutputObject
   >;
   getEvent(
+    key: "OwnershipTransferred"
+  ): TypedContractEvent<
+    OwnershipTransferredEvent.InputTuple,
+    OwnershipTransferredEvent.OutputTuple,
+    OwnershipTransferredEvent.OutputObject
+  >;
+  getEvent(
+    key: "PayoutFailed"
+  ): TypedContractEvent<
+    PayoutFailedEvent.InputTuple,
+    PayoutFailedEvent.OutputTuple,
+    PayoutFailedEvent.OutputObject
+  >;
+  getEvent(
     key: "PlatformFeeCollected"
   ): TypedContractEvent<
     PlatformFeeCollectedEvent.InputTuple,
@@ -1131,6 +1222,28 @@ export interface FHELotteryV2 extends BaseContract {
       OwnershipTransferStartedEvent.InputTuple,
       OwnershipTransferStartedEvent.OutputTuple,
       OwnershipTransferStartedEvent.OutputObject
+    >;
+
+    "OwnershipTransferred(address,address)": TypedContractEvent<
+      OwnershipTransferredEvent.InputTuple,
+      OwnershipTransferredEvent.OutputTuple,
+      OwnershipTransferredEvent.OutputObject
+    >;
+    OwnershipTransferred: TypedContractEvent<
+      OwnershipTransferredEvent.InputTuple,
+      OwnershipTransferredEvent.OutputTuple,
+      OwnershipTransferredEvent.OutputObject
+    >;
+
+    "PayoutFailed(uint256,address,uint256)": TypedContractEvent<
+      PayoutFailedEvent.InputTuple,
+      PayoutFailedEvent.OutputTuple,
+      PayoutFailedEvent.OutputObject
+    >;
+    PayoutFailed: TypedContractEvent<
+      PayoutFailedEvent.InputTuple,
+      PayoutFailedEvent.OutputTuple,
+      PayoutFailedEvent.OutputObject
     >;
 
     "PlatformFeeCollected(uint256,uint256)": TypedContractEvent<

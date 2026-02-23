@@ -81,6 +81,13 @@ async function main() {
     process.exit(0);
   }
 
+  // Check if round is waiting (no guesses yet)
+  const isWaiting = await lottery.isRoundWaiting();
+  if (isWaiting) {
+    console.log("\n⏳ Round is waiting for first guess. Nothing to settle.");
+    process.exit(0);
+  }
+
   const timeRemaining = await lottery.getTimeRemaining();
   if (timeRemaining > 0n) {
     console.log(`\n⏳ Round has ${timeRemaining.toString()} seconds remaining. Cannot settle yet.`);
@@ -120,21 +127,36 @@ async function main() {
     console.log("\n✅ Step 2: Finality delay already passed");
   }
 
-  // Step 3: Fetch decrypted values from Zama Relayer
-  console.log("\n🔓 Step 3: Fetching decrypted values from Zama Relayer...");
+  // Step 3: Build ciphertext handles and fetch decrypted values from Zama Relayer
+  console.log("\n🔓 Step 3: Building ciphertext handles and fetching decrypted values...");
   
-  // Build the list of ciphertext handles we need decrypted
-  // Handle 0 = lucky number, handles 1..N = distances
   const guessCount = Number(roundInfo.guessCount);
-  const handles = [];
-
-  // We need to read the encrypted handles from contract storage
-  // The lucky number handle is stored in the round struct
-  // The distance handles are stored in roundGuesses
-  console.log(`  Need to decrypt: 1 lucky number + ${guessCount} distances = ${1 + guessCount} values`);
+  
+  // Read ciphertext handles from contract storage
+  // The lucky number handle is stored in round.encryptedLuckyNumber (bytes32 via FHE.toBytes32)
+  // The distance handles are stored in roundGuesses[roundId][i].distance
+  // After requestSettlement, distances are computed and marked publicly decryptable
+  
+  // Read lucky number handle from the round struct
+  // rounds mapping returns a tuple — encryptedLuckyNumber is at index 3
+  const roundStruct = await lottery.rounds(currentRoundId);
+  const luckyNumberHandle = roundStruct.encryptedLuckyNumber;
+  console.log(`  Lucky number handle: ${luckyNumberHandle}`);
+  
+  // Read distance handles from roundGuesses
+  const distanceHandles = [];
+  for (let i = 0; i < guessCount; i++) {
+    const guess = await lottery.roundGuesses(currentRoundId, i);
+    distanceHandles.push(guess.distance);
+    console.log(`  Distance handle [${i}]: ${guess.distance}`);
+  }
+  
+  // Combine all handles: [luckyNumber, distance0, distance1, ...]
+  const allHandles = [luckyNumberHandle, ...distanceHandles];
+  console.log(`\n  Total handles to decrypt: ${allHandles.length} (1 lucky + ${guessCount} distances)`);
 
   try {
-    const decryptionResult = await fetchDecryptedValues(handles);
+    const decryptionResult = await fetchDecryptedValues(allHandles);
     
     const luckyNumber = decryptionResult.values[0];
     const distances = decryptionResult.values.slice(1);
@@ -167,11 +189,9 @@ async function main() {
 
   } catch (error) {
     console.error("\n❌ Settlement failed:", error.message);
-    console.log("\nNote: The Zama Relayer API endpoint and response format may need adjustment");
-    console.log("based on the actual relayer documentation. The handles for ciphertext values");
-    console.log("need to be read from contract events or storage to pass to the relayer.");
-    console.log("\nAlternative: Use the Zama Relayer SDK in a Node.js script with the");
-    console.log("@zama-fhe/relayer-sdk package for proper handle resolution and decryption.");
+    console.log("\nNote: The Zama Relayer API response format may vary. If the response structure");
+    console.log("differs from expected { values, proof }, adjust the parsing in this script.");
+    console.log("Alternatively, use the @zama-fhe/relayer-sdk package for proper decryption.");
     process.exit(1);
   }
 }
