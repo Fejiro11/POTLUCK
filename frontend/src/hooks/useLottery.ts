@@ -17,11 +17,13 @@ interface RoundInfo {
   guessCount: number;
   maxWinners: number;
   isSettled: boolean;
+  isWaiting: boolean;
 }
 
 interface UseLotteryReturn {
   roundInfo: RoundInfo | null;
   timeRemaining: number;
+  isRoundWaiting: boolean;
   isLoading: boolean;
   submitGuess: (number: number) => Promise<void>;
   claimRefund: (roundId: number) => Promise<void>;
@@ -35,6 +37,7 @@ export function useLottery(): UseLotteryReturn {
   const { encryptUint8 } = useFhevm();
   const [roundInfo, setRoundInfo] = useState<RoundInfo | null>(null);
   const [timeRemaining, setTimeRemaining] = useState(0);
+  const [isRoundWaitingState, setIsRoundWaiting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
   // Contract is deployed
@@ -66,6 +69,15 @@ export function useLottery(): UseLotteryReturn {
     try {
       const result = await contract.getCurrentRound();
       
+      // Check if round is waiting for first guess
+      let waiting = false;
+      try {
+        waiting = await contract.isRoundWaiting();
+      } catch {
+        // Fallback: endTime == 0 means waiting
+        waiting = Number(result.endTime) === 0 && !result.isSettled;
+      }
+
       const info: RoundInfo = {
         roundId: Number(result.roundId),
         startTime: Number(result.startTime),
@@ -75,14 +87,20 @@ export function useLottery(): UseLotteryReturn {
         guessCount: Number(result.guessCount),
         maxWinners: calculateMaxWinners(Number(result.playerCount)),
         isSettled: result.isSettled,
+        isWaiting: waiting,
       };
 
       setRoundInfo(info);
+      setIsRoundWaiting(waiting);
       
-      // Calculate time remaining
-      const now = Math.floor(Date.now() / 1000);
-      const remaining = Math.max(0, info.endTime - now);
-      setTimeRemaining(remaining);
+      // Calculate time remaining (0 if waiting for first guess)
+      if (waiting || info.endTime === 0) {
+        setTimeRemaining(0);
+      } else {
+        const now = Math.floor(Date.now() / 1000);
+        const remaining = Math.max(0, info.endTime - now);
+        setTimeRemaining(remaining);
+      }
     } catch (error) {
       console.error('Failed to fetch round info:', error);
       setRoundInfo(null);
@@ -195,6 +213,7 @@ export function useLottery(): UseLotteryReturn {
   return {
     roundInfo,
     timeRemaining,
+    isRoundWaiting: isRoundWaitingState,
     isLoading,
     submitGuess,
     claimRefund,

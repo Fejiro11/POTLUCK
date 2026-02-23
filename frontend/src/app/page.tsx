@@ -15,7 +15,7 @@ import { Shield, Lock, Zap } from 'lucide-react';
 export default function Home() {
   const [selectedNumber, setSelectedNumber] = useState<number | null>(null);
   const { isConnected, address, connect, disconnect } = useWallet();
-  const { roundInfo, timeRemaining, isLoading } = useLottery();
+  const { roundInfo, timeRemaining, isRoundWaiting, isLoading } = useLottery();
 
   return (
     <main className="min-h-screen">
@@ -88,6 +88,7 @@ export default function Home() {
             <RoundInfo 
               roundInfo={roundInfo} 
               timeRemaining={timeRemaining}
+              isRoundWaiting={isRoundWaiting}
               isLoading={isLoading} 
             />
             

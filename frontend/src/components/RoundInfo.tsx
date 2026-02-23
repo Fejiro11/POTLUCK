@@ -10,12 +10,14 @@ interface RoundInfoProps {
     guessCount: number;
     maxWinners: number;
     isSettled: boolean;
+    isWaiting?: boolean;
   } | null;
   timeRemaining: number;
+  isRoundWaiting?: boolean;
   isLoading: boolean;
 }
 
-export function RoundInfo({ roundInfo, timeRemaining, isLoading }: RoundInfoProps) {
+export function RoundInfo({ roundInfo, timeRemaining, isRoundWaiting, isLoading }: RoundInfoProps) {
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
@@ -51,9 +53,11 @@ export function RoundInfo({ roundInfo, timeRemaining, isLoading }: RoundInfoProp
         <span className={`text-xs px-2 py-1 rounded-full ${
           roundInfo?.isSettled 
             ? 'bg-dark-700 text-dark-400' 
+            : isRoundWaiting
+            ? 'bg-blue-500/20 text-blue-400'
             : 'bg-green-500/20 text-green-400'
         }`}>
-          {roundInfo?.isSettled ? 'Settled' : 'Active'}
+          {roundInfo?.isSettled ? 'Settled' : isRoundWaiting ? 'Waiting' : 'Active'}
         </span>
       </div>
 
@@ -64,9 +68,12 @@ export function RoundInfo({ roundInfo, timeRemaining, isLoading }: RoundInfoProp
           Time Remaining
         </div>
         <div className="text-3xl font-mono font-bold gradient-text">
-          {timeRemaining > 0 ? formatTime(timeRemaining) : '00:00'}
+          {isRoundWaiting ? '--:--' : timeRemaining > 0 ? formatTime(timeRemaining) : '00:00'}
         </div>
-        {timeRemaining <= 0 && !roundInfo?.isSettled && (
+        {isRoundWaiting && (
+          <p className="text-blue-400 text-xs mt-1">Timer starts when first guess is submitted</p>
+        )}
+        {!isRoundWaiting && timeRemaining <= 0 && !roundInfo?.isSettled && (
           <p className="text-yellow-500 text-xs mt-1">Awaiting settlement...</p>
         )}
       </div>

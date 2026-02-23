@@ -70,6 +70,7 @@ contract FHELotteryV2 is ZamaEthereumConfig {
     event PlatformFeeCollected(uint256 indexed roundId, uint256 amount);
     event WinnerRevealed(uint256 indexed roundId, address indexed winner, uint8 guess, uint256 payout);
     event DecryptionRequested(uint256 indexed roundId);
+    event RoundActivated(uint256 indexed roundId, uint256 activatedAt, uint256 endTime);
     event OwnershipTransferStarted(address indexed previousOwner, address indexed newOwner);
 
     // ============ Modifiers ============
@@ -80,14 +81,19 @@ contract FHELotteryV2 is ZamaEthereumConfig {
 
     modifier roundActive() {
         Round storage round = rounds[currentRoundId];
-        require(block.timestamp >= round.startTime, "Round not started");
-        require(block.timestamp < round.endTime, "Round ended");
+        require(!round.isSettled, "Round settled");
+        // endTime == 0 means round is waiting for first guess (always open)
+        // endTime > 0 means timer is running, check it hasn't expired
+        require(round.endTime == 0 || block.timestamp < round.endTime, "Round ended");
         require(round.playerCount < MAX_PLAYERS, "Round full");
         _;
     }
 
     modifier roundEnded(uint256 _roundId) {
-        require(block.timestamp >= rounds[_roundId].endTime, "Round not ended");
+        Round storage round = rounds[_roundId];
+        // Round must have been activated (endTime > 0) and time must have passed
+        require(round.endTime > 0, "Round not activated yet");
+        require(block.timestamp >= round.endTime, "Round not ended");
         _;
     }
 
@@ -112,6 +118,12 @@ contract FHELotteryV2 is ZamaEthereumConfig {
         require(msg.value >= ENTRY_FEE, "Insufficient fee");
         
         Round storage round = rounds[currentRoundId];
+        
+        // Activate round timer on first guess
+        if (round.endTime == 0) {
+            round.endTime = block.timestamp + ROUND_DURATION;
+            emit RoundActivated(currentRoundId, block.timestamp, round.endTime);
+        }
         
         // Convert external input to encrypted uint8 using new API
         euint8 encryptedNumber = FHE.fromExternal(_encryptedGuess, _inputProof);
@@ -180,6 +192,12 @@ contract FHELotteryV2 is ZamaEthereumConfig {
         require(msg.value >= ENTRY_FEE * numGuesses, "Insufficient fee");
         
         Round storage round = rounds[currentRoundId];
+        
+        // Activate round timer on first guess
+        if (round.endTime == 0) {
+            round.endTime = block.timestamp + ROUND_DURATION;
+            emit RoundActivated(currentRoundId, block.timestamp, round.endTime);
+        }
         
         for (uint256 i = 0; i < numGuesses; i++) {
             euint8 encryptedNumber = FHE.fromExternal(_encryptedGuesses[i], _inputProofs[i]);
@@ -453,14 +471,6 @@ contract FHELotteryV2 is ZamaEthereumConfig {
     function _startNewRound() internal {
         currentRoundId++;
         
-        uint256 startTime = block.timestamp;
-        if (currentRoundId > 1) {
-            Round storage prevRound = rounds[currentRoundId - 1];
-            uint256 scheduledStart = prevRound.endTime + COOLING_PERIOD;
-            // Use the later of current time or scheduled start to handle skipped/stuck rounds
-            startTime = scheduledStart > block.timestamp ? scheduledStart : block.timestamp;
-        }
-        
         // Generate encrypted random lucky number (0-100)
         // Use bounded random per Zama docs: upperBound must be power of 2
         // randEuint8(128) returns 0-127, then clamp 101-127 down to range
@@ -475,10 +485,12 @@ contract FHELotteryV2 is ZamaEthereumConfig {
         // Grant FHE permissions per Zama docs
         FHE.allowThis(luckyNumber);
         
+        // endTime = 0 means round is waiting for first guess
+        // Timer starts when first guess is submitted
         rounds[currentRoundId] = Round({
             roundId: currentRoundId,
-            startTime: startTime,
-            endTime: startTime + ROUND_DURATION,
+            startTime: block.timestamp,
+            endTime: 0,
             encryptedLuckyNumber: luckyNumber,
             revealedLuckyNumber: 0,
             totalPool: 0,
@@ -494,7 +506,7 @@ contract FHELotteryV2 is ZamaEthereumConfig {
             winnerPayouts: new uint256[](0)
         });
         
-        emit RoundStarted(currentRoundId, startTime, startTime + ROUND_DURATION);
+        emit RoundStarted(currentRoundId, block.timestamp, 0);
     }
 
     /**
@@ -652,14 +664,23 @@ contract FHELotteryV2 is ZamaEthereumConfig {
 
     function getTimeRemaining() external view returns (uint256) {
         Round storage round = rounds[currentRoundId];
+        // endTime == 0 means waiting for first guess (no timer yet)
+        if (round.endTime == 0) return 0;
         if (block.timestamp >= round.endTime) return 0;
         return round.endTime - block.timestamp;
+    }
+
+    function isRoundWaiting() external view returns (bool) {
+        return rounds[currentRoundId].endTime == 0 && !rounds[currentRoundId].isSettled;
     }
 
     function canStartNewRound() external view returns (bool) {
         if (currentRoundId == 0) return true;
         Round storage round = rounds[currentRoundId];
-        return round.isSettled && block.timestamp >= round.endTime + COOLING_PERIOD;
+        if (!round.isSettled) return false;
+        // If endTime was never set (skipped empty round), no cooling period needed
+        if (round.endTime == 0) return true;
+        return block.timestamp >= round.endTime + COOLING_PERIOD;
     }
 
     // ============ Admin Functions ============
@@ -675,8 +696,9 @@ contract FHELotteryV2 is ZamaEthereumConfig {
      */
     function skipStuckRound() external onlyOwner {
         Round storage round = rounds[currentRoundId];
-        require(block.timestamp >= round.endTime, "Round not ended yet");
         require(!round.isSettled, "Round already settled");
+        // Only need to skip if timer was activated, otherwise just settle empty round
+        require(round.endTime == 0 || block.timestamp >= round.endTime, "Round not ended yet");
         
         // Mark as settled with no winners (allows refunds)
         round.isSettled = true;

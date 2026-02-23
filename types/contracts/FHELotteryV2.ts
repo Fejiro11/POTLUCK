@@ -47,6 +47,7 @@ export interface FHELotteryV2Interface extends Interface {
       | "getRoundResults"
       | "getTimeRemaining"
       | "hasClaimedRefund"
+      | "isRoundWaiting"
       | "owner"
       | "pendingOwner"
       | "platformWallet"
@@ -71,6 +72,7 @@ export interface FHELotteryV2Interface extends Interface {
       | "PlatformFeeCollected"
       | "PublicDecryptionVerified"
       | "RefundClaimed"
+      | "RoundActivated"
       | "RoundSettled"
       | "RoundStarted"
       | "WinnerRevealed"
@@ -156,6 +158,10 @@ export interface FHELotteryV2Interface extends Interface {
   encodeFunctionData(
     functionFragment: "hasClaimedRefund",
     values: [BigNumberish, AddressLike]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "isRoundWaiting",
+    values?: undefined
   ): string;
   encodeFunctionData(functionFragment: "owner", values?: undefined): string;
   encodeFunctionData(
@@ -283,6 +289,10 @@ export interface FHELotteryV2Interface extends Interface {
   ): Result;
   decodeFunctionResult(
     functionFragment: "hasClaimedRefund",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "isRoundWaiting",
     data: BytesLike
   ): Result;
   decodeFunctionResult(functionFragment: "owner", data: BytesLike): Result;
@@ -436,6 +446,28 @@ export namespace RefundClaimedEvent {
     roundId: bigint;
     player: string;
     amount: bigint;
+  }
+  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
+  export type Filter = TypedDeferredTopicFilter<Event>;
+  export type Log = TypedEventLog<Event>;
+  export type LogDescription = TypedLogDescription<Event>;
+}
+
+export namespace RoundActivatedEvent {
+  export type InputTuple = [
+    roundId: BigNumberish,
+    activatedAt: BigNumberish,
+    endTime: BigNumberish
+  ];
+  export type OutputTuple = [
+    roundId: bigint,
+    activatedAt: bigint,
+    endTime: bigint
+  ];
+  export interface OutputObject {
+    roundId: bigint;
+    activatedAt: bigint;
+    endTime: bigint;
   }
   export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
   export type Filter = TypedDeferredTopicFilter<Event>;
@@ -650,6 +682,8 @@ export interface FHELotteryV2 extends BaseContract {
     [boolean],
     "view"
   >;
+
+  isRoundWaiting: TypedContractMethod<[], [boolean], "view">;
 
   owner: TypedContractMethod<[], [string], "view">;
 
@@ -869,6 +903,9 @@ export interface FHELotteryV2 extends BaseContract {
     "view"
   >;
   getFunction(
+    nameOrSignature: "isRoundWaiting"
+  ): TypedContractMethod<[], [boolean], "view">;
+  getFunction(
     nameOrSignature: "owner"
   ): TypedContractMethod<[], [string], "view">;
   getFunction(
@@ -1023,6 +1060,13 @@ export interface FHELotteryV2 extends BaseContract {
     RefundClaimedEvent.OutputObject
   >;
   getEvent(
+    key: "RoundActivated"
+  ): TypedContractEvent<
+    RoundActivatedEvent.InputTuple,
+    RoundActivatedEvent.OutputTuple,
+    RoundActivatedEvent.OutputObject
+  >;
+  getEvent(
     key: "RoundSettled"
   ): TypedContractEvent<
     RoundSettledEvent.InputTuple,
@@ -1120,6 +1164,17 @@ export interface FHELotteryV2 extends BaseContract {
       RefundClaimedEvent.InputTuple,
       RefundClaimedEvent.OutputTuple,
       RefundClaimedEvent.OutputObject
+    >;
+
+    "RoundActivated(uint256,uint256,uint256)": TypedContractEvent<
+      RoundActivatedEvent.InputTuple,
+      RoundActivatedEvent.OutputTuple,
+      RoundActivatedEvent.OutputObject
+    >;
+    RoundActivated: TypedContractEvent<
+      RoundActivatedEvent.InputTuple,
+      RoundActivatedEvent.OutputTuple,
+      RoundActivatedEvent.OutputObject
     >;
 
     "RoundSettled(uint256,uint8,address[],uint256[])": TypedContractEvent<

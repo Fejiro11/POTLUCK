@@ -85,7 +85,30 @@ describe("FHELotteryV2", function () {
       expect(roundInfo.isSettled).to.equal(false);
     });
 
-    it("should return time remaining", async function () {
+    it("should return 0 time remaining for waiting round (no guesses yet)", async function () {
+      const timeRemaining = await lottery.getTimeRemaining();
+      expect(timeRemaining).to.equal(0); // No timer until first guess
+    });
+
+    it("should show round as waiting before first guess", async function () {
+      expect(await lottery.isRoundWaiting()).to.equal(true);
+    });
+
+    it("should activate timer after first guess", async function () {
+      const guessValue = 50;
+      const encryptedGuess = await fhevm
+        .createEncryptedInput(lotteryAddress, signers.alice.address)
+        .add8(guessValue)
+        .encrypt();
+
+      await lottery.connect(signers.alice).submitGuess(
+        encryptedGuess.handles[0],
+        encryptedGuess.inputProof,
+        { value: ENTRY_FEE }
+      );
+
+      // Timer should now be active
+      expect(await lottery.isRoundWaiting()).to.equal(false);
       const timeRemaining = await lottery.getTimeRemaining();
       expect(timeRemaining).to.be.gt(0);
       expect(timeRemaining).to.be.lte(600); // 10 minutes max

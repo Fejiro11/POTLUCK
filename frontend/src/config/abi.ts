@@ -81,6 +81,13 @@ export const FHE_LOTTERY_ABI = [
   },
   {
     inputs: [],
+    name: "isRoundWaiting",
+    outputs: [{ name: "", type: "bool" }],
+    stateMutability: "view",
+    type: "function"
+  },
+  {
+    inputs: [],
     name: "FINALITY_DELAY",
     outputs: [{ name: "", type: "uint256" }],
     stateMutability: "view",
@@ -273,6 +280,16 @@ export const FHE_LOTTERY_ABI = [
       { indexed: true, name: "newOwner", type: "address" }
     ],
     name: "OwnershipTransferStarted",
+    type: "event"
+  },
+  {
+    anonymous: false,
+    inputs: [
+      { indexed: true, name: "roundId", type: "uint256" },
+      { indexed: false, name: "activatedAt", type: "uint256" },
+      { indexed: false, name: "endTime", type: "uint256" }
+    ],
+    name: "RoundActivated",
     type: "event"
   }
 ] as const;
