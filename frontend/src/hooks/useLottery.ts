@@ -1,10 +1,10 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { ethers } from 'ethers';
 import { useWallet } from './useWallet';
 import { useFhevm } from '@/fhevm';
-import { CONTRACTS, ENTRY_FEE, NETWORK } from '@/config/contracts';
+import { CONTRACTS, ENTRY_FEE, NETWORK, ZAMA_CONTRACTS } from '@/config/contracts';
 import { FHE_LOTTERY_ABI } from '@/config/abi';
 
 
@@ -20,6 +20,8 @@ interface RoundInfo {
   isWaiting: boolean;
 }
 
+export type SettlementStatus = 'idle' | 'requesting' | 'waiting' | 'decrypting' | 'finalizing' | 'done' | 'error';
+
 interface UseLotteryReturn {
   roundInfo: RoundInfo | null;
   timeRemaining: number;
@@ -29,6 +31,10 @@ interface UseLotteryReturn {
   claimRefund: (roundId: number) => Promise<void>;
   claimWinnings: (roundId: number) => Promise<void>;
   refreshRound: () => Promise<void>;
+  settleRound: () => Promise<void>;
+  settlementStatus: SettlementStatus;
+  settlementError: string | null;
+  settlementWaitRemaining: number;
 }
 
 
@@ -39,6 +45,10 @@ export function useLottery(): UseLotteryReturn {
   const [timeRemaining, setTimeRemaining] = useState(0);
   const [isRoundWaitingState, setIsRoundWaiting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [settlementStatus, setSettlementStatus] = useState<SettlementStatus>('idle');
+  const [settlementError, setSettlementError] = useState<string | null>(null);
+  const [settlementWaitRemaining, setSettlementWaitRemaining] = useState(0);
+  const settlementAbort = useRef<AbortController | null>(null);
 
   // Contract is deployed
   const isContractDeployed = CONTRACTS.FHE_LOTTERY.length === 42 && CONTRACTS.FHE_LOTTERY.startsWith('0x');
@@ -75,7 +85,7 @@ export function useLottery(): UseLotteryReturn {
 
     try {
       const result = await contract.getCurrentRound();
-      
+
       // Check if round is waiting for first guess
       let waiting = false;
       try {
@@ -99,7 +109,7 @@ export function useLottery(): UseLotteryReturn {
 
       setRoundInfo(info);
       setIsRoundWaiting(waiting);
-      
+
       // Calculate time remaining (0 if waiting for first guess)
       if (waiting || info.endTime === 0) {
         setTimeRemaining(0);
@@ -135,7 +145,7 @@ export function useLottery(): UseLotteryReturn {
         userAddress,
         number
       );
-      
+
       const encrypted = encryptedInputs.handles[0];
       const inputProof = encryptedInputs.inputProof;
 
@@ -184,6 +194,123 @@ export function useLottery(): UseLotteryReturn {
     console.log('Winnings for round', roundId, 'were automatically distributed');
   }, []);
 
+  // Settlement flow — any connected user can trigger this
+  const settleRound = useCallback(async () => {
+    const contract = getContract(true);
+    const readContract = getContract(false);
+    if (!contract || !readContract || !signer) {
+      throw new Error('Wallet not connected');
+    }
+
+    // Abort any in-progress settlement
+    settlementAbort.current?.abort();
+    const abort = new AbortController();
+    settlementAbort.current = abort;
+
+    setSettlementError(null);
+
+    try {
+      const roundId = await readContract.currentRoundId();
+
+      // Step 1: Request settlement (if not already requested)
+      setSettlementStatus('requesting');
+      const roundData = await readContract.rounds(roundId);
+      const alreadyRequested = Number(roundData.decryptionRequestedAt) > 0;
+
+      if (!alreadyRequested) {
+        console.log('[Settlement] Requesting settlement...');
+        const tx = await contract.requestSettlement(roundId);
+        await tx.wait();
+        console.log('[Settlement] requestSettlement confirmed');
+      } else {
+        console.log('[Settlement] Decryption already requested');
+      }
+
+      if (abort.signal.aborted) return;
+
+      // Step 2: Wait for finality delay
+      setSettlementStatus('waiting');
+      const updatedRound = await readContract.rounds(roundId);
+      const decryptionAt = Number(updatedRound.decryptionRequestedAt);
+      const finalityDelay = Number(await readContract.FINALITY_DELAY());
+      const readyAt = decryptionAt + finalityDelay;
+
+      // Poll until finality delay passes
+      while (true) {
+        if (abort.signal.aborted) return;
+        const now = Math.floor(Date.now() / 1000);
+        const remaining = Math.max(0, readyAt - now);
+        setSettlementWaitRemaining(remaining);
+        if (remaining <= 0) break;
+        await new Promise(r => setTimeout(r, 1000));
+      }
+
+      if (abort.signal.aborted) return;
+
+      // Step 3: Fetch decrypted values from Zama Relayer
+      setSettlementStatus('decrypting');
+      const guessCount = Number(updatedRound.guessCount);
+
+      // Read ciphertext handles from contract
+      const luckyNumberHandle = updatedRound.encryptedLuckyNumber;
+      const distanceHandles: string[] = [];
+      for (let i = 0; i < guessCount; i++) {
+        const guess = await readContract.roundGuesses(roundId, i);
+        distanceHandles.push(guess.distance.toString());
+      }
+
+      // CRITICAL: Handle order must match contract's finalizeSettlement
+      const allHandles = [luckyNumberHandle.toString(), ...distanceHandles];
+      console.log(`[Settlement] Fetching ${allHandles.length} decrypted values from relayer...`);
+
+      const response = await fetch(`${ZAMA_CONTRACTS.RELAYER_URL}/v1/public-decrypt`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ handles: allHandles }),
+        signal: abort.signal,
+      });
+
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(`Relayer returned ${response.status}: ${text}`);
+      }
+
+      const decryptionResult = await response.json();
+      const luckyNumber = decryptionResult.values[0];
+      const distances = decryptionResult.values.slice(1);
+      const proof = decryptionResult.proof;
+
+      console.log(`[Settlement] Lucky number: ${luckyNumber}, Distances: [${distances.join(', ')}]`);
+
+      if (abort.signal.aborted) return;
+
+      // Step 4: Finalize settlement on-chain
+      setSettlementStatus('finalizing');
+      const finalizeTx = await contract.finalizeSettlement(
+        roundId,
+        luckyNumber,
+        distances,
+        proof,
+      );
+      await finalizeTx.wait();
+      console.log('[Settlement] Finalized!');
+
+      setSettlementStatus('done');
+      await refreshRound();
+
+      // Reset to idle after a moment
+      setTimeout(() => {
+        setSettlementStatus('idle');
+      }, 5000);
+
+    } catch (error: any) {
+      if (abort.signal.aborted) return;
+      console.error('[Settlement] Failed:', error);
+      setSettlementStatus('error');
+      setSettlementError(error?.reason || error?.message || 'Settlement failed');
+    }
+  }, [getContract, signer, refreshRound]);
+
   // Initial load
   useEffect(() => {
     refreshRound();
@@ -230,6 +357,11 @@ export function useLottery(): UseLotteryReturn {
     };
   }, [getContract, refreshRound]);
 
+  // Cleanup abort controller on unmount
+  useEffect(() => {
+    return () => { settlementAbort.current?.abort(); };
+  }, []);
+
   return {
     roundInfo,
     timeRemaining,
@@ -239,6 +371,10 @@ export function useLottery(): UseLotteryReturn {
     claimRefund,
     claimWinnings,
     refreshRound,
+    settleRound,
+    settlementStatus,
+    settlementError,
+    settlementWaitRemaining,
   };
 }
 

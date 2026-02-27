@@ -8,6 +8,7 @@ import { WalletConnect } from '@/components/WalletConnect';
 import { SubmitGuess } from '@/components/SubmitGuess';
 import { PastRounds } from '@/components/PastRounds';
 import { ClaimSection } from '@/components/ClaimSection';
+import { SettleRound } from '@/components/SettleRound';
 import { useWallet } from '@/hooks/useWallet';
 import { useLottery } from '@/hooks/useLottery';
 import { Shield, Lock, Zap } from 'lucide-react';
@@ -15,7 +16,10 @@ import { Shield, Lock, Zap } from 'lucide-react';
 export default function Home() {
   const [selectedNumber, setSelectedNumber] = useState<number | null>(null);
   const { isConnected, address, connect, disconnect } = useWallet();
-  const { roundInfo, timeRemaining, isRoundWaiting, isLoading } = useLottery();
+  const {
+    roundInfo, timeRemaining, isRoundWaiting, isLoading,
+    settleRound, settlementStatus, settlementError, settlementWaitRemaining,
+  } = useLottery();
 
   return (
     <main className="min-h-screen">
@@ -93,6 +97,17 @@ export default function Home() {
               isLoading={isLoading} 
             />
             
+            {/* Settle button — visible when round ended, unsettled, has guesses */}
+            {isConnected && roundInfo && !roundInfo.isSettled && !isRoundWaiting &&
+             timeRemaining === 0 && roundInfo.guessCount > 0 && roundInfo.endTime > 0 && (
+              <SettleRound
+                onSettle={settleRound}
+                status={settlementStatus}
+                error={settlementError}
+                waitRemaining={settlementWaitRemaining}
+              />
+            )}
+
             {isConnected && (
               <ClaimSection address={address} />
             )}

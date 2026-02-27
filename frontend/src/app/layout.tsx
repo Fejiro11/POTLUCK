@@ -19,10 +19,10 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark">
       <body className={`${inter.className} bg-dark-950 text-white min-h-screen`}>
-        {/* Load Zama Relayer SDK from CDN - beforeInteractive ensures it loads early */}
-        <Script 
+        {/* Load Zama Relayer SDK from CDN - lazyOnload defers until page is idle */}
+        <Script
           src="https://cdn.zama.org/relayer-sdk-js/0.3.0-8/relayer-sdk-js.umd.cjs"
-          strategy="afterInteractive"
+          strategy="lazyOnload"
           id="zama-relayer-sdk"
         />
         <Providers>

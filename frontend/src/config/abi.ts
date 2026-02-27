@@ -159,6 +159,45 @@ export const FHE_LOTTERY_ABI = [
     stateMutability: "view",
     type: "function"
   },
+  {
+    inputs: [{ name: "", type: "uint256" }],
+    name: "rounds",
+    outputs: [
+      { name: "roundId", type: "uint256" },
+      { name: "startTime", type: "uint256" },
+      { name: "endTime", type: "uint256" },
+      { name: "encryptedLuckyNumber", type: "uint256" },
+      { name: "revealedLuckyNumber", type: "uint8" },
+      { name: "totalPool", type: "uint256" },
+      { name: "platformFee", type: "uint256" },
+      { name: "playerCount", type: "uint256" },
+      { name: "guessCount", type: "uint256" },
+      { name: "maxWinners", type: "uint256" },
+      { name: "isSettled", type: "bool" },
+      { name: "luckyNumberRevealed", type: "bool" },
+      { name: "hasExactMatch", type: "bool" },
+      { name: "decryptionRequestedAt", type: "uint256" }
+    ],
+    stateMutability: "view",
+    type: "function"
+  },
+  {
+    inputs: [
+      { name: "", type: "uint256" },
+      { name: "", type: "uint256" }
+    ],
+    name: "roundGuesses",
+    outputs: [
+      { name: "player", type: "address" },
+      { name: "encryptedNumber", type: "uint256" },
+      { name: "distance", type: "uint256" },
+      { name: "submissionOrder", type: "uint256" },
+      { name: "isWinner", type: "bool" },
+      { name: "revealedNumber", type: "uint8" }
+    ],
+    stateMutability: "view",
+    type: "function"
+  },
   // State-changing functions
   {
     inputs: [

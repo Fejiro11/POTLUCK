@@ -9,7 +9,7 @@ interface ProvidersProps {
 
 export function Providers({ children }: ProvidersProps) {
   return (
-    <FhevmProvider autoInitialize={true}>
+    <FhevmProvider autoInitialize={false}>
       {children}
     </FhevmProvider>
   );
