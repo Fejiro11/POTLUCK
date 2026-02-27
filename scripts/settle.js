@@ -151,13 +151,22 @@ async function main() {
     console.log(`  Distance handle [${i}]: ${guess.distance}`);
   }
   
-  // Combine all handles: [luckyNumber, distance0, distance1, ...]
+  // CRITICAL: Handle ordering must match the contract's ciphertexts array in
+  // finalizeSettlement exactly: [luckyNumber, distance[0], distance[1], ...]
+  // The decryption proof is cryptographically bound to this specific order.
+  // Changing the order will cause FHE.checkSignatures to revert.
   const allHandles = [luckyNumberHandle, ...distanceHandles];
   console.log(`\n  Total handles to decrypt: ${allHandles.length} (1 lucky + ${guessCount} distances)`);
 
   try {
     const decryptionResult = await fetchDecryptedValues(allHandles);
-    
+
+    // NOTE: The Zama Relayer SDK's publicDecrypt() returns:
+    //   - clearValues: mapping of handle → plaintext value
+    //   - abiEncodedClearValues: ABI-encoded bytes in exact handle order
+    //   - decryptionProof: KMS signatures
+    // If using the REST API directly, verify the response shape matches.
+    // The values must be extracted in the SAME order as allHandles above.
     const luckyNumber = decryptionResult.values[0];
     const distances = decryptionResult.values.slice(1);
     const proof = decryptionResult.proof;

@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { ethers } from 'ethers';
 import { useWallet } from './useWallet';
 import { useFhevm } from '@/fhevm';
-import { CONTRACTS, ENTRY_FEE } from '@/config/contracts';
+import { CONTRACTS, ENTRY_FEE, NETWORK } from '@/config/contracts';
 import { FHE_LOTTERY_ABI } from '@/config/abi';
 
 
@@ -43,16 +43,23 @@ export function useLottery(): UseLotteryReturn {
   // Contract is deployed
   const isContractDeployed = CONTRACTS.FHE_LOTTERY.length === 42 && CONTRACTS.FHE_LOTTERY.startsWith('0x');
 
+  // Read-only provider for fetching data without wallet connection
+  const getReadProvider = useCallback(() => {
+    if (provider) return provider;
+    // Fallback to public RPC so all users can read contract state
+    return new ethers.JsonRpcProvider(NETWORK.rpcUrl);
+  }, [provider]);
+
   const getContract = useCallback((withSigner = false) => {
-    if (!provider || !isContractDeployed) return null;
-    
-    const contract = new ethers.Contract(
-      CONTRACTS.FHE_LOTTERY,
-      FHE_LOTTERY_ABI,
-      withSigner && signer ? signer : provider
-    );
-    return contract;
-  }, [provider, signer, isContractDeployed]);
+    if (!isContractDeployed) return null;
+
+    if (withSigner) {
+      if (!provider || !signer) return null;
+      return new ethers.Contract(CONTRACTS.FHE_LOTTERY, FHE_LOTTERY_ABI, signer);
+    }
+
+    return new ethers.Contract(CONTRACTS.FHE_LOTTERY, FHE_LOTTERY_ABI, getReadProvider());
+  }, [provider, signer, isContractDeployed, getReadProvider]);
 
   const refreshRound = useCallback(async () => {
     if (!isContractDeployed) {
@@ -195,10 +202,33 @@ export function useLottery(): UseLotteryReturn {
   useEffect(() => {
     const interval = setInterval(() => {
       refreshRound();
-    }, 30000); // Every 30 seconds
+    }, 15000); // Every 15 seconds
 
     return () => clearInterval(interval);
   }, [refreshRound]);
+
+  // Listen for on-chain events to sync across all users in real time
+  useEffect(() => {
+    const contract = getContract();
+    if (!contract) return;
+
+    const onGuessSubmitted = () => { refreshRound(); };
+    const onRoundStarted = () => { refreshRound(); };
+    const onRoundSettled = () => { refreshRound(); };
+    const onRoundActivated = () => { refreshRound(); };
+
+    contract.on('GuessSubmitted', onGuessSubmitted);
+    contract.on('RoundStarted', onRoundStarted);
+    contract.on('RoundSettled', onRoundSettled);
+    contract.on('RoundActivated', onRoundActivated);
+
+    return () => {
+      contract.off('GuessSubmitted', onGuessSubmitted);
+      contract.off('RoundStarted', onRoundStarted);
+      contract.off('RoundSettled', onRoundSettled);
+      contract.off('RoundActivated', onRoundActivated);
+    };
+  }, [getContract, refreshRound]);
 
   return {
     roundInfo,

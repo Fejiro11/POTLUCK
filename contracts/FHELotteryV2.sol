@@ -265,10 +265,13 @@ contract FHELotteryV2 is ZamaEthereumConfig {
         // Compute distances for all guesses (encrypted)
         _computeDistances(_roundId);
         
-        // Mark lucky number as publicly decryptable per Zama docs
+        // Mark values as publicly decryptable per Zama docs.
+        // CRITICAL: Handle ordering is cryptographically bound to the decryption proof.
+        // The off-chain relayer MUST call publicDecrypt with handles in this exact order:
+        //   [encryptedLuckyNumber, distances[0], distances[1], ...]
+        // This order must match finalizeSettlement's ciphertexts array exactly.
         FHE.makePubliclyDecryptable(round.encryptedLuckyNumber);
-        
-        // Mark all distances as publicly decryptable
+
         EncryptedGuess[] storage guesses = roundGuesses[_roundId];
         for (uint256 i = 0; i < guesses.length; i++) {
             FHE.makePubliclyDecryptable(guesses[i].distance);
@@ -309,16 +312,18 @@ contract FHELotteryV2 is ZamaEthereumConfig {
         EncryptedGuess[] storage guesses = roundGuesses[_roundId];
         require(_distances.length == guesses.length, "Distance count mismatch");
         
-        // Build ciphertext handles array for verification
+        // Build ciphertext handles array for verification.
+        // CRITICAL: Order must be [luckyNumber, distance[0], distance[1], ...] —
+        // must match requestSettlement's makePubliclyDecryptable order exactly,
+        // as the decryption proof is cryptographically bound to this ordering.
         bytes32[] memory ciphertexts = new bytes32[](1 + guesses.length);
         ciphertexts[0] = FHE.toBytes32(round.encryptedLuckyNumber);
         for (uint256 i = 0; i < guesses.length; i++) {
             ciphertexts[i + 1] = FHE.toBytes32(guesses[i].distance);
         }
-        
-        // Build cleartext bytes for verification per Zama docs
-        // Each cleartext must be individually abi.encode'd and concatenated
-        // Order must match ciphertexts array: [luckyNumber, distances[0], distances[1], ...]
+
+        // Build cleartext bytes for verification per Zama docs.
+        // Each cleartext is individually abi.encode'd (32-byte padded) and concatenated.
         bytes memory cleartexts = abi.encode(_luckyNumber);
         for (uint256 i = 0; i < _distances.length; i++) {
             cleartexts = bytes.concat(cleartexts, abi.encode(_distances[i]));
@@ -493,15 +498,11 @@ contract FHELotteryV2 is ZamaEthereumConfig {
         currentRoundId++;
         
         // Generate encrypted random lucky number (0-100)
-        // Use bounded random per Zama docs: upperBound must be power of 2
-        // randEuint8(128) returns 0-127, then clamp 101-127 down to range
-        euint8 randomValue = FHE.randEuint8(128);
-        
-        // Clamp values 101-127 to valid range using scalar operands (gas optimization)
-        ebool tooHigh = FHE.gt(randomValue, uint8(MAX_NUMBER));
-        euint8 adjusted = FHE.sub(randomValue, 101);
-        euint8 luckyNumber = FHE.select(tooHigh, adjusted, randomValue);
-        // Values 101-127 become 0-26 after subtraction, always valid
+        // FHE.randEuint8() returns [0, 255], FHE.rem with plaintext divisor gives [0, 100]
+        // Note: slight distribution bias — values 0-53 appear 3/256 times (~1.17%) while
+        // values 54-100 appear 2/256 times (~0.78%), a 1.5:1 ratio. This is inherent to
+        // mapping 256 values onto 101 buckets and cannot be eliminated without wider types.
+        euint8 luckyNumber = FHE.rem(FHE.randEuint8(), 101);
         
         // Grant FHE permissions per Zama docs
         FHE.allowThis(luckyNumber);
