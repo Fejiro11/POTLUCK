@@ -27,7 +27,7 @@ async function fetchDecryptedValues(ciphertextHandles) {
     const response = await fetch(`${RELAYER_URL}/v1/public-decrypt`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ciphertextHandles: ciphertextHandles }),
+      body: JSON.stringify({ ciphertextHandles: ciphertextHandles, extraData: '0x00' }),
     });
 
     if (!response.ok) {
