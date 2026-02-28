@@ -266,7 +266,7 @@ export function useLottery(): UseLotteryReturn {
       const response = await fetch(`${ZAMA_CONTRACTS.RELAYER_URL}/v1/public-decrypt`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ handles: allHandles }),
+        body: JSON.stringify({ ciphertextHandles: allHandles }),
         signal: abort.signal,
       });
 
