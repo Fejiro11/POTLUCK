@@ -161,17 +161,40 @@ async function main() {
   console.log(`\n  Total handles to decrypt: ${allHandles.length} (1 lucky + ${guessCount} distances)`);
 
   try {
-    const decryptionResult = await fetchDecryptedValues(allHandles);
+    const json = await fetchDecryptedValues(allHandles);
+    console.log("  Relayer response:", JSON.stringify(json));
 
-    // NOTE: The Zama Relayer SDK's publicDecrypt() returns:
-    //   - clearValues: mapping of handle → plaintext value
-    //   - abiEncodedClearValues: ABI-encoded bytes in exact handle order
-    //   - decryptionProof: KMS signatures
-    // If using the REST API directly, verify the response shape matches.
-    // The values must be extracted in the SAME order as allHandles above.
-    const luckyNumber = decryptionResult.values[0];
-    const distances = decryptionResult.values.slice(1);
-    const proof = decryptionResult.proof;
+    // Parse relayer response: { response: [{ decrypted_value, signatures }] }
+    const result = json.response[0];
+    const decryptedResult = result.decrypted_value.startsWith('0x')
+      ? result.decrypted_value
+      : '0x' + result.decrypted_value;
+    const kmsSignatures = result.signatures.map(s =>
+      s.startsWith('0x') ? s : '0x' + s
+    );
+
+    // Decode clear values from ABI-encoded decryptedResult
+    // Format: dummy requestID (32 bytes) + values + dummy bytes[] (32 bytes)
+    const { AbiCoder, solidityPacked, concat } = require("ethers");
+    const coder = AbiCoder.defaultAbiCoder();
+    const abiTypes = allHandles.map(() => 'uint256'); // euint8 handles decode as uint256
+    const restoredEncoded = '0x' +
+      '00'.repeat(32) +
+      decryptedResult.slice(2) +
+      '00'.repeat(32);
+    const decoded = coder.decode(['uint256', ...abiTypes, 'bytes[]'], restoredEncoded);
+    const rawValues = decoded.slice(1, 1 + allHandles.length);
+
+    const luckyNumber = Number(rawValues[0]);
+    const distances = rawValues.slice(1).map(v => Number(v));
+
+    // Build decryption proof: numSigners (uint8) + packed signatures + extraData
+    const packedNumSigners = solidityPacked(['uint8'], [kmsSignatures.length]);
+    const packedSignatures = solidityPacked(
+      Array(kmsSignatures.length).fill('bytes'),
+      kmsSignatures
+    );
+    const proof = concat([packedNumSigners, packedSignatures, '0x']);
 
     console.log(`  Lucky number: ${luckyNumber}`);
     console.log(`  Distances: [${distances.join(", ")}]`);

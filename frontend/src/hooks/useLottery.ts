@@ -277,10 +277,41 @@ export function useLottery(): UseLotteryReturn {
         throw new Error(`Relayer returned ${response.status}: ${text}`);
       }
 
-      const decryptionResult = await response.json();
-      const luckyNumber = decryptionResult.values[0];
-      const distances = decryptionResult.values.slice(1);
-      const proof = decryptionResult.proof;
+      const json = await response.json();
+      console.log('[Settlement] Relayer response:', JSON.stringify(json));
+
+      // Parse relayer response: { response: [{ decrypted_value, signatures }] }
+      const result = json.response[0];
+      const decryptedResult = result.decrypted_value.startsWith('0x')
+        ? result.decrypted_value
+        : '0x' + result.decrypted_value;
+      const kmsSignatures: string[] = result.signatures.map((s: string) =>
+        s.startsWith('0x') ? s : '0x' + s
+      );
+
+      // Decode clear values from ABI-encoded decryptedResult
+      // Each euint8 handle decodes as uint256 in the ABI encoding
+      // Format: dummy requestID (32 bytes) + values + dummy bytes[] (32 bytes)
+      const { AbiCoder, solidityPacked, concat } = await import('ethers');
+      const coder = AbiCoder.defaultAbiCoder();
+      const abiTypes = allHandles.map(() => 'uint256'); // euint8 handles decode as uint256
+      const restoredEncoded = '0x' +
+        '00'.repeat(32) + // dummy requestID
+        decryptedResult.slice(2) +
+        '00'.repeat(32); // dummy empty bytes[]
+      const decoded = coder.decode(['uint256', ...abiTypes, 'bytes[]'], restoredEncoded);
+      const rawValues = decoded.slice(1, 1 + allHandles.length);
+
+      const luckyNumber = Number(rawValues[0]);
+      const distances = rawValues.slice(1).map((v: any) => Number(v));
+
+      // Build decryption proof: numSigners (uint8) + packed signatures + extraData
+      const packedNumSigners = solidityPacked(['uint8'], [kmsSignatures.length]);
+      const packedSignatures = solidityPacked(
+        Array(kmsSignatures.length).fill('bytes'),
+        kmsSignatures
+      );
+      const proof = concat([packedNumSigners, packedSignatures, '0x']);
 
       console.log(`[Settlement] Lucky number: ${luckyNumber}, Distances: [${distances.join(', ')}]`);
 
