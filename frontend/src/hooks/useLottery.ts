@@ -260,7 +260,9 @@ export function useLottery(): UseLotteryReturn {
       }
 
       // CRITICAL: Handle order must match contract's finalizeSettlement
-      const allHandles = [luckyNumberHandle.toString(), ...distanceHandles];
+      // Handles are uint256 from contract — convert to 0x-prefixed hex strings for relayer
+      const toHex = (v: any) => '0x' + BigInt(v).toString(16).padStart(64, '0');
+      const allHandles = [toHex(luckyNumberHandle), ...distanceHandles.map(toHex)];
       console.log(`[Settlement] Fetching ${allHandles.length} decrypted values from relayer...`);
 
       const response = await fetch(`${ZAMA_CONTRACTS.RELAYER_URL}/v1/public-decrypt`, {

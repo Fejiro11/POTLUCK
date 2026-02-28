@@ -155,7 +155,9 @@ async function main() {
   // finalizeSettlement exactly: [luckyNumber, distance[0], distance[1], ...]
   // The decryption proof is cryptographically bound to this specific order.
   // Changing the order will cause FHE.checkSignatures to revert.
-  const allHandles = [luckyNumberHandle, ...distanceHandles];
+  // Convert handles to 0x-prefixed hex strings for the relayer API
+  const toHex = (v) => '0x' + BigInt(v).toString(16).padStart(64, '0');
+  const allHandles = [toHex(luckyNumberHandle), ...distanceHandles.map(toHex)];
   console.log(`\n  Total handles to decrypt: ${allHandles.length} (1 lucky + ${guessCount} distances)`);
 
   try {
