@@ -27,7 +27,7 @@ export function Header({ isConnected, address, onConnect, onDisconnect }: Header
               <span className="text-xl font-bold">🎰</span>
             </div>
             <div>
-              <h1 className="text-xl font-bold gradient-text">FHE Lottery</h1>
+              <h1 className="text-xl font-bold gradient-text">POTLUCK FHE</h1>
               <p className="text-xs text-dark-400">Private by Default</p>
             </div>
           </div>

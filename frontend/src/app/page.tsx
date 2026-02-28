@@ -34,7 +34,7 @@ export default function Home() {
         {/* Hero Section */}
         <section className="text-center mb-12">
           <h1 className="text-5xl md:text-6xl font-bold mb-4">
-            <span className="gradient-text">FHE Lottery</span>
+            <span className="gradient-text">POTLUCK FHE</span>
           </h1>
           <p className="text-xl text-dark-300 max-w-2xl mx-auto mb-8">
             The first private-by-default onchain lottery. Your guesses remain encrypted 
@@ -109,7 +109,7 @@ export default function Home() {
             )}
 
             {isConnected && (
-              <ClaimSection address={address} />
+              <ClaimSection address={address} roundSettled={roundInfo?.isSettled} />
             )}
           </div>
         </div>

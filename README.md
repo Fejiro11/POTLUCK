@@ -1,10 +1,10 @@
-# FHE Lottery - Private Onchain Lottery
+# POTLUCK FHE - Private Onchain Lottery
 
 A production-ready prototype demonstrating how Zama's Fully Homomorphic Encryption (FHE) enables privacy and fairness that cannot be achieved with traditional onchain lotteries.
 
 ## 🎰 Overview
 
-FHE Lottery is a private-by-default lottery where all guesses and the winning number are encrypted throughout the round. No plaintext guesses, odds, or strategy signals are visible onchain until settlement.
+POTLUCK FHE is a private-by-default lottery where all guesses and the winning number are encrypted throughout the round. No plaintext guesses, odds, or strategy signals are visible onchain until settlement.
 
 ### Key Features
 
@@ -39,7 +39,7 @@ FHE Lottery is a private-by-default lottery where all guesses and the winning nu
 ## 🏗️ Architecture
 
 ```
-FHE Lottery
+POTLUCK FHE
 ├── contracts/           # Solidity smart contracts
 │   ├── FHELottery.sol  # Main lottery contract with FHE operations
 │   └── interfaces/     # Contract interfaces

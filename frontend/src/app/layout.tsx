@@ -7,7 +7,7 @@ import { Providers } from '@/components/Providers';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'FHE Lottery | Private Onchain Lottery',
+  title: 'POTLUCK FHE | Private Onchain Lottery',
   description: 'A private-by-default lottery using Zama\'s fully homomorphic encryption. All guesses remain encrypted until settlement.',
 };
 

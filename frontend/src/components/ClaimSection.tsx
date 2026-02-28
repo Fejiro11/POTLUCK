@@ -10,6 +10,8 @@ import { FHE_LOTTERY_ABI } from '@/config/abi';
 
 interface ClaimSectionProps {
   address: string | null;
+  /** Pass the current round's settled status so claims refresh automatically after settlement */
+  roundSettled?: boolean;
 }
 
 interface ClaimableRound {
@@ -18,7 +20,7 @@ interface ClaimableRound {
   amount: string;
 }
 
-export function ClaimSection({ address }: ClaimSectionProps) {
+export function ClaimSection({ address, roundSettled }: ClaimSectionProps) {
   const [claimableRounds, setClaimableRounds] = useState<ClaimableRound[]>([]);
   const [isClaiming, setIsClaiming] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -67,9 +69,10 @@ export function ClaimSection({ address }: ClaimSectionProps) {
     }
   }, [address, provider]);
 
+  // Re-check when address/provider changes or when a round gets settled
   useEffect(() => {
     checkClaimable();
-  }, [checkClaimable]);
+  }, [checkClaimable, roundSettled]);
 
   const handleClaim = async (round: ClaimableRound) => {
     setIsClaiming(true);

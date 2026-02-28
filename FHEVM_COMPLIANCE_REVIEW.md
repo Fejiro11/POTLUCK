@@ -1,8 +1,8 @@
-# FHE Lottery App - Zama FHEVM Compliance Review
+# POTLUCK FHE App - Zama FHEVM Compliance Review
 
 ## Executive Summary
 
-Your FHE Lottery application is **largely compliant** with Zama's FHEVM documentation guidelines. The implementation demonstrates good understanding of FHE concepts, proper use of encrypted types, and security best practices. However, there is **one critical issue** that needs to be addressed in the public decryption flow.
+Your POTLUCK FHE application is **largely compliant** with Zama's FHEVM documentation guidelines. The implementation demonstrates good understanding of FHE concepts, proper use of encrypted types, and security best practices. However, there is **one critical issue** that needs to be addressed in the public decryption flow.
 
 ## ✅ What's Working Well
 
@@ -174,7 +174,7 @@ Your implementation correctly follows these Zama guides:
 
 ## ✅ Conclusion
 
-Your FHE Lottery application demonstrates **strong compliance** with Zama's FHEVM guidelines. The code structure is clean, security measures are properly implemented, and the FHE operations are used correctly. 
+Your POTLUCK FHE application demonstrates **strong compliance** with Zama's FHEVM guidelines. The code structure is clean, security measures are properly implemented, and the FHE operations are used correctly. 
 
 The **main action item** is to verify that the ABI encoding format in `finalizeSettlement()` matches what the Zama relayer SDK returns. Once verified (or corrected if needed), your implementation should be fully compliant.
 

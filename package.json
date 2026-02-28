@@ -1,5 +1,5 @@
 {
-  "name": "fhe-lottery",
+  "name": "potluck-fhe",
   "version": "1.0.0",
   "description": "Private onchain lottery using Zama's fully homomorphic encryption",
   "scripts": {
